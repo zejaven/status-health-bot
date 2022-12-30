@@ -26,10 +26,9 @@ public class HealthCheck {
         if (site.getLock().tryLock()) {
             try {
                 site.getLock().lock();
-                System.out.println("Before check health. " + Thread.currentThread().getName() + " | " + site.getUrl());
                 healthCheckService.checkHealth(site);
-                System.out.println("After check health. " + Thread.currentThread().getName() + " | " + site.getUrl());
             } finally {
+                site.getLock().unlock();
                 site.getLock().unlock();
             }
         }
