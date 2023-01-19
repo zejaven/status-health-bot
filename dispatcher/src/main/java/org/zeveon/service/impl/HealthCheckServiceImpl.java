@@ -38,6 +38,7 @@ import static org.zeveon.util.StringUtil.HEALTH_TEMPLATE;
 @AllArgsConstructor
 public class HealthCheckServiceImpl implements HealthCheckService {
 
+    public static final String HTTP = "HTTP";
     private final HealthRepository healthRepository;
 
     public void checkHealth(Site site, Method method) {
@@ -45,19 +46,80 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         var startTime = LocalDateTime.now();
         switch (method) {
             case APACHE_HTTP_CLIENT -> {
-                checkHealthApache(site);
+                var responseCode = checkHealthApache(site);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setApacheResponseTime);
+                site.setApacheResponseCode(responseCode);
             }
             case JAVA_HTTP_CLIENT -> {
-                checkHealthJava(site);
+                var responseCode = checkHealthJava(site);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setJavaResponseTime);
+                site.setJavaResponseCode(responseCode);
             }
             case CURL_PROCESS -> {
-                checkHealthCurl(site);
+                var responseCode = checkHealthCurl(site);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setCurlResponseTime);
+                site.setCurlResponseCode(responseCode);
             }
         }
         healthRepository.save(site);
+    }
+
+    private int checkHealthApache(Site site) {
+        try (var httpClient = HttpClientBuilder.create()
+                .setConnectionTimeToLive(1000L, TimeUnit.MILLISECONDS)
+                .build()) {
+            var request = new HttpGet(site.getUrl());
+            var response = httpClient.execute(request);
+            int responseCode = response.getStatusLine().getStatusCode();
+            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            return responseCode;
+        } catch (IOException e) {
+            log.error(e.getMessage());
+            return 0;
+        }
+    }
+
+    private int checkHealthJava(Site site) {
+        var httpClient = HttpClient.newBuilder().build();
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(site.getUrl()))
+                .timeout(Duration.ofSeconds(3L))
+                .GET().build();
+        try {
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int responseCode = response.statusCode();
+            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            return responseCode;
+        } catch (IOException | InterruptedException e) {
+            log.error(e.getMessage());
+            return 0;
+        }
+    }
+
+    private int checkHealthCurl(Site site) {
+        try {
+            var process = Runtime.getRuntime().exec("curl -I -L -s -H \"User-Agent: HealthBot\" %s"
+                    .formatted(site.getUrl()));
+            var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            var output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains(HTTP)) {
+                    output.append(line).append(LF);
+                }
+            }
+            int responseCode = stream(output.toString().split(LF))
+                    .reduce((a, b) -> b)
+                    .filter(r -> !r.isEmpty())
+                    .map(r -> r.split(SPACE)[1])
+                    .map(Integer::parseInt)
+                    .orElse(0);
+            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            return responseCode;
+        } catch (IOException e) {
+            log.error(e.getMessage());
+            return 0;
+        }
     }
 
     private void setResponseTime(
@@ -74,56 +136,5 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .map(r -> r.dividedBy(newCount))
                 .orElse(Duration.ZERO));
         Data.getRequestCount().put(site, Pair.of(durations, newCount));
-    }
-
-    private void checkHealthApache(Site site) {
-        try (var httpClient = HttpClientBuilder.create()
-                .setConnectionTimeToLive(1000L, TimeUnit.MILLISECONDS)
-                .build()) {
-            var request = new HttpGet(site.getUrl());
-            var response = httpClient.execute(request);
-            int responseCode = response.getStatusLine().getStatusCode();
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
-    }
-
-    private void checkHealthJava(Site site) {
-        var httpClient = HttpClient.newBuilder().build();
-        var request = HttpRequest.newBuilder()
-                .uri(URI.create(site.getUrl()))
-                .timeout(Duration.ofSeconds(3L))
-                .GET().build();
-        try {
-            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            int responseCode = response.statusCode();
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
-        } catch (IOException | InterruptedException e) {
-            log.error(e.getMessage());
-        }
-    }
-
-    private void checkHealthCurl(Site site) {
-        try {
-            var process = Runtime.getRuntime().exec("curl -I -L -s -H \"User-Agent: HealthBot\" %s"
-                    .formatted(site.getUrl()));
-            var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            var output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains("HTTP")) {
-                    output.append(line).append(LF);
-                }
-            }
-            int responseCode = stream(output.toString().split(LF))
-                    .reduce((a, b) -> b)
-                    .map(r -> r.split(SPACE)[1])
-                    .map(Integer::parseInt)
-                    .orElse(0);
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
     }
 }

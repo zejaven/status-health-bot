@@ -37,6 +37,15 @@ public class Site {
     @Column(name = "curl_response_time")
     private Duration curlResponseTime;
 
+    @Column(name = "apache_response_code")
+    private Integer apacheResponseCode;
+
+    @Column(name = "java_response_code")
+    private Integer javaResponseCode;
+
+    @Column(name = "curl_response_code")
+    private Integer curlResponseCode;
+
     @Transient
     private Lock lock = new ReentrantLock();
 }
