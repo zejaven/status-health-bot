@@ -1,9 +1,13 @@
 package org.zeveon.data;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.zeveon.entity.Site;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author Stanislav Vafin
@@ -14,8 +18,12 @@ public class Data {
 
     private static volatile int currentIndex;
 
+    private static Map<Site, Pair<List<Duration>, Integer>> requestCount;
+
     public static synchronized void initialize(List<Site> initializationList) {
         sites = new ArrayList<>(initializationList);
+        requestCount = sites.stream()
+                .collect(Collectors.toMap(e -> e, e -> Pair.of(new ArrayList<>(), 0)));
     }
 
     public static synchronized void addAll(List<Site> newElements) {
@@ -30,5 +38,9 @@ public class Data {
         return sites.get(currentIndex < sites.size()
                 ? currentIndex++
                 : (currentIndex = 0));
+    }
+
+    public static synchronized Map<Site, Pair<List<Duration>, Integer>> getRequestCount() {
+        return requestCount;
     }
 }

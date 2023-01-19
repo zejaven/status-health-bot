@@ -3,6 +3,7 @@ package org.zeveon.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Duration;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -26,6 +27,15 @@ public class Site {
 
     @Column(name = "url")
     private String url;
+
+    @Column(name = "apache_response_time")
+    private Duration apacheResponseTime;
+
+    @Column(name = "java_response_time")
+    private Duration javaResponseTime;
+
+    @Column(name = "curl_response_time")
+    private Duration curlResponseTime;
 
     @Transient
     private Lock lock = new ReentrantLock();

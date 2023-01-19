@@ -1,11 +1,15 @@
 package org.zeveon.controller;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.zeveon.model.Method;
 
 /**
  * @author Stanislav Vafin
@@ -19,6 +23,11 @@ public class HealthBot extends TelegramLongPollingBot {
 
     @Value("${bot.name}")
     private String botUsername;
+
+    @Value("${health-check.method}")
+    @Enumerated(EnumType.STRING)
+    @NotNull
+    private Method method;
 
     private final UpdateController updateController;
 
@@ -44,5 +53,9 @@ public class HealthBot extends TelegramLongPollingBot {
     @Override
     public String getBotToken() {
         return accessToken;
+    }
+
+    public Method getHealthCheckMethod() {
+        return method;
     }
 }

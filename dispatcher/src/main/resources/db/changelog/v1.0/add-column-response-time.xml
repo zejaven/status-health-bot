@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="add-column-response-time" author="Stanislav Vafin">
+        <addColumn tableName="site" schemaName="health">
+            <column name="apache_response_time" type="interval"/>
+            <column name="java_response_time" type="interval"/>
+            <column name="curl_response_time" type="interval"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

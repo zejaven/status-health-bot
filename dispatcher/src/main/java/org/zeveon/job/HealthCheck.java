@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.zeveon.controller.HealthBot;
 import org.zeveon.data.Data;
 import org.zeveon.service.HealthCheckService;
 
@@ -19,6 +20,8 @@ import org.zeveon.service.HealthCheckService;
 public class HealthCheck {
     private final HealthCheckService healthCheckService;
 
+    private final HealthBot healthBot;
+
     @Async
     @Scheduled(fixedRate = 1000)
     public void scheduleFixedRateTaskAsync() {
@@ -26,7 +29,7 @@ public class HealthCheck {
         if (site.getLock().tryLock()) {
             try {
                 site.getLock().lock();
-                healthCheckService.checkHealth(site);
+                healthCheckService.checkHealth(site, healthBot.getHealthCheckMethod());
             } finally {
                 site.getLock().unlock();
                 site.getLock().unlock();
