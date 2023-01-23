@@ -29,7 +29,7 @@ public class HealthCheck {
         if (site.getLock().tryLock()) {
             try {
                 site.getLock().lock();
-                healthCheckService.checkHealth(site, healthBot.getHealthCheckMethod());
+                healthCheckService.checkHealth(site, healthBot.getBotInfo());
             } finally {
                 site.getLock().unlock();
                 site.getLock().unlock();

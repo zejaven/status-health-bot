@@ -5,10 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.glassfish.grizzly.http.util.Header;
 import org.springframework.stereotype.Service;
 import org.zeveon.data.Data;
 import org.zeveon.entity.Site;
-import org.zeveon.model.Method;
+import org.zeveon.model.BotInfo;
 import org.zeveon.repository.HealthRepository;
 import org.zeveon.service.HealthCheckService;
 import org.zeveon.util.CurlRequest;
@@ -23,13 +24,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
 import static org.zeveon.util.StringUtil.HEALTH_TEMPLATE;
+import static org.zeveon.util.StringUtil.HTTP;
 
 /**
  * @author Stanislav Vafin
@@ -39,25 +40,25 @@ import static org.zeveon.util.StringUtil.HEALTH_TEMPLATE;
 @AllArgsConstructor
 public class HealthCheckServiceImpl implements HealthCheckService {
 
-    public static final String HTTP = "HTTP";
     private final HealthRepository healthRepository;
 
-    public void checkHealth(Site site, Method method) {
+    public void checkHealth(Site site, BotInfo botInfo) {
         var durationsRequestCountPair = Data.getRequestCount().get(site);
+        var botUsername = botInfo.getBotUsername();
         var startTime = LocalDateTime.now();
-        switch (method) {
+        switch (botInfo.getHealthCheckMethod()) {
             case APACHE_HTTP_CLIENT -> {
-                var responseCode = checkHealthApache(site);
+                var responseCode = checkHealthApache(site, botUsername);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setApacheResponseTime);
                 site.setApacheResponseCode(responseCode);
             }
             case JAVA_HTTP_CLIENT -> {
-                var responseCode = checkHealthJava(site);
+                var responseCode = checkHealthJava(site, botUsername);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setJavaResponseTime);
                 site.setJavaResponseCode(responseCode);
             }
             case CURL_PROCESS -> {
-                var responseCode = checkHealthCurl(site);
+                var responseCode = checkHealthCurl(site, botUsername);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setCurlResponseTime);
                 site.setCurlResponseCode(responseCode);
             }
@@ -65,9 +66,9 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         healthRepository.save(site);
     }
 
-    private int checkHealthApache(Site site) {
+    private int checkHealthApache(Site site, String botUsername) {
         try (var httpClient = HttpClientBuilder.create()
-                .setConnectionTimeToLive(1000L, TimeUnit.MILLISECONDS)
+                .setUserAgent(botUsername)
                 .build()) {
             var request = new HttpGet(site.getUrl());
             var response = httpClient.execute(request);
@@ -80,7 +81,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthJava(Site site) {
+    private int checkHealthJava(Site site, String botUsername) {
         var httpClient = HttpClient.newBuilder().build();
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(site.getUrl()))
@@ -97,14 +98,14 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthCurl(Site site) {
+    private int checkHealthCurl(Site site, String botUsername) {
         try {
             var process = Runtime.getRuntime()
                     .exec(CurlRequest.builder(site.getUrl())
                                     .head()
                                     .location()
                                     .silent()
-                                    .header("User-Agent: HealthBot")
+                                    .header(Header.UserAgent.name(), botUsername)
                                     .build()
                             .getCommand());
             var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));

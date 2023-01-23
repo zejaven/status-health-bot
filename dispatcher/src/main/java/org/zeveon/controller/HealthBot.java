@@ -9,6 +9,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.zeveon.model.BotInfo;
 import org.zeveon.model.Method;
 
 /**
@@ -55,7 +56,10 @@ public class HealthBot extends TelegramLongPollingBot {
         return accessToken;
     }
 
-    public Method getHealthCheckMethod() {
-        return method;
+    public BotInfo getBotInfo() {
+        return BotInfo.builder()
+                .healthCheckMethod(method)
+                .botUsername(getBotUsername())
+                .build();
     }
 }

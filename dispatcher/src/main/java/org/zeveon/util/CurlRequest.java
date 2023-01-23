@@ -3,6 +3,7 @@ package org.zeveon.util;
 import lombok.Getter;
 
 import static org.apache.commons.lang3.StringUtils.SPACE;
+import static org.zeveon.util.StringUtil.COLON;
 import static org.zeveon.util.StringUtil.QUOT;
 
 /**
@@ -59,9 +60,16 @@ public class CurlRequest {
         /**
          * Pass custom header(s) to server
          */
-        public CurlRequestBuilder header(String header) {
-            this.request.append(SPACE).append("-H")
-                    .append(SPACE).append(QUOT).append(header).append(QUOT);
+        public CurlRequestBuilder header(String headerKey, String headerValue) {
+            this.request.append(SPACE)
+                    .append("-H")
+                    .append(SPACE)
+                    .append(QUOT)
+                    .append(headerKey)
+                    .append(COLON)
+                    .append(SPACE)
+                    .append(headerValue)
+                    .append(QUOT);
             return this;
         }
 
