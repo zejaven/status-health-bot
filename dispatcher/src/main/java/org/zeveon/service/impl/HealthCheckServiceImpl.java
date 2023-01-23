@@ -11,6 +11,7 @@ import org.zeveon.entity.Site;
 import org.zeveon.model.Method;
 import org.zeveon.repository.HealthRepository;
 import org.zeveon.service.HealthCheckService;
+import org.zeveon.util.CurlRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -98,8 +99,14 @@ public class HealthCheckServiceImpl implements HealthCheckService {
 
     private int checkHealthCurl(Site site) {
         try {
-            var process = Runtime.getRuntime().exec("curl -I -L -s -H \"User-Agent: HealthBot\" %s"
-                    .formatted(site.getUrl()));
+            var process = Runtime.getRuntime()
+                    .exec(CurlRequest.builder(site.getUrl())
+                                    .head()
+                                    .location()
+                                    .silent()
+                                    .header("User-Agent: HealthBot")
+                                    .build()
+                            .getCommand());
             var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             var output = new StringBuilder();
             String line;
