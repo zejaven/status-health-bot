@@ -73,6 +73,17 @@ public class CurlRequest {
             return this;
         }
 
+        /**
+         * Maximum time allowed for connection
+         */
+        public CurlRequestBuilder connectTimeout(Integer seconds) {
+            this.request.append(SPACE)
+                    .append("--connect-timeout")
+                    .append(SPACE)
+                    .append(seconds);
+            return this;
+        }
+
         public CurlRequest build() {
             request.append(SPACE).append(url);
             return new CurlRequest(this);

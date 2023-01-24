@@ -105,11 +105,12 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         try {
             var process = Runtime.getRuntime()
                     .exec(CurlRequest.builder(site.getUrl())
-                                    .head()
-                                    .location()
-                                    .silent()
-                                    .header(Header.UserAgent.name(), botUsername)
-                                    .build()
+                            .head()
+                            .location()
+                            .silent()
+                            .connectTimeout(3)
+                            .header(Header.UserAgent.name(), botUsername)
+                            .build()
                             .getCommand());
             var reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             var output = new StringBuilder();
