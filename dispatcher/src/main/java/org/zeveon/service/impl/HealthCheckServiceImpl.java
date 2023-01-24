@@ -82,8 +82,11 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     }
 
     private int checkHealthJava(Site site, String botUsername) {
-        var httpClient = HttpClient.newBuilder().build();
+        var httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
         var request = HttpRequest.newBuilder()
+                .header(Header.UserAgent.name(), botUsername)
                 .uri(URI.create(site.getUrl()))
                 .timeout(Duration.ofSeconds(3L))
                 .GET().build();
