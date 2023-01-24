@@ -47,5 +47,6 @@ public class Site {
     private Integer curlResponseCode;
 
     @Transient
+    @Builder.Default
     private Lock lock = new ReentrantLock();
 }

@@ -32,10 +32,12 @@ public class Data {
 
     public static synchronized void addAll(List<Site> newElements) {
         sites.addAll(newElements);
+        newElements.forEach(e -> requestCount.put(e, Pair.of(new ArrayList<>(), 0)));
     }
 
     public static synchronized void removeAllById(List<Long> elementsToRemove) {
         sites.removeIf(s -> elementsToRemove.contains(s.getId()));
+        requestCount.entrySet().removeIf(e -> elementsToRemove.contains(e.getKey().getId()));
     }
 
     public static synchronized Optional<Site> getCurrentSite() {

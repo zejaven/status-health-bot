@@ -97,13 +97,13 @@ public class UpdateController {
         return Command.LIST.entrySet().stream()
                 .map(e -> HELP_TEMPLATE.formatted(e.getKey(), e.getValue()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(EMPTY);
+                .orElse(EMPTY_HELP_RESPONSE);
     }
 
     private String buildSitesResponse() {
         return healthService.getSites().stream()
                 .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(EMPTY);
+                .orElse(EMPTY_SITES_RESPONSE);
     }
 }

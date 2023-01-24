@@ -26,7 +26,9 @@ public class HealthServiceImpl implements HealthService {
     @Transactional
     @CacheEvict(value = Cache.SITES, allEntries = true)
     public void saveSites(List<String> siteUrls) {
+        var currentSiteUrls = getSites().stream().map(Site::getUrl).toList();
         var sites = siteUrls.stream()
+                .filter(s -> !currentSiteUrls.contains(s))
                 .map(s -> Site.builder().url(s).build())
                 .toList();
         healthRepository.saveAll(sites);
