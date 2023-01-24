@@ -4,11 +4,11 @@
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="add-column-response-code" author="Stanislav Vafin">
+    <changeSet id="2023-01-19-19-58-00_add-column-response-time" author="Stanislav Vafin">
         <addColumn tableName="site" schemaName="health">
-            <column name="apache_response_code" type="integer"/>
-            <column name="java_response_code" type="integer"/>
-            <column name="curl_response_code" type="integer"/>
+            <column name="apache_response_time" type="numeric(21)"/>
+            <column name="java_response_time" type="numeric(21)"/>
+            <column name="curl_response_time" type="numeric(21)"/>
         </addColumn>
     </changeSet>
 </databaseChangeLog>

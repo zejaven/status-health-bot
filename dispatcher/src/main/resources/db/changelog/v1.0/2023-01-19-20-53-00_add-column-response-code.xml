@@ -4,12 +4,11 @@
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="create-table-site" author="Stanislav Vafin">
-        <createTable tableName="site" schemaName="health">
-            <column name="id" type="bigint" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="url" type="varchar(255)"/>
-        </createTable>
+    <changeSet id="2023-01-19-20-53-00_add-column-response-code" author="Stanislav Vafin">
+        <addColumn tableName="site" schemaName="health">
+            <column name="apache_response_code" type="integer"/>
+            <column name="java_response_code" type="integer"/>
+            <column name="curl_response_code" type="integer"/>
+        </addColumn>
     </changeSet>
 </databaseChangeLog>

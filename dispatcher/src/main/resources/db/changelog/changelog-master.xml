@@ -4,5 +4,7 @@
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <include file="v1.0/create-table-site.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/2022-12-30-14-55-00_create-table-site.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/2023-01-19-19-58-00_add-column-response-time.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/2023-01-19-20-53-00_add-column-response-code.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
