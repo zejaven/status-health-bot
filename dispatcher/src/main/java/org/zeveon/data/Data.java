@@ -7,7 +7,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 
 /**
  * @author Stanislav Vafin
@@ -34,10 +38,10 @@ public class Data {
         sites.removeIf(s -> elementsToRemove.contains(s.getId()));
     }
 
-    public static synchronized Site getCurrentSite() {
-        return sites.get(currentIndex < sites.size()
-                ? currentIndex++
-                : (currentIndex = 0));
+    public static synchronized Optional<Site> getCurrentSite() {
+        return !sites.isEmpty()
+                ? of(sites.get(currentIndex < sites.size() ? currentIndex++ : (currentIndex = 0)))
+                : empty();
     }
 
     public static synchronized Map<Site, Pair<List<Duration>, Integer>> getRequestCount() {

@@ -25,15 +25,16 @@ public class HealthCheck {
     @Async
     @Scheduled(fixedRate = 1000)
     public void scheduleFixedRateTaskAsync() {
-        var site = Data.getCurrentSite();
-        if (site.getLock().tryLock()) {
-            try {
-                site.getLock().lock();
-                healthCheckService.checkHealth(site, healthBot.getBotInfo());
-            } finally {
-                site.getLock().unlock();
-                site.getLock().unlock();
+        Data.getCurrentSite().ifPresent(s -> {
+            if (s.getLock().tryLock()) {
+                try {
+                    s.getLock().lock();
+                    healthCheckService.checkHealth(s, healthBot.getBotInfo());
+                } finally {
+                    s.getLock().unlock();
+                    s.getLock().unlock();
+                }
             }
-        }
+        });
     }
 }
