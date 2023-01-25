@@ -68,12 +68,7 @@ public class UpdateController {
         switch (command) {
             case Command.HELP -> sendResponse(buildHelpResponse(), chatId);
             case Command.GET_SITES -> sendResponse(buildSitesResponse(), chatId);
-            case Command.REMOVE -> {
-                if (!argsList.isEmpty()) {
-                    healthService.removeSites(argsList);
-                    sendResponse(buildSitesResponse(), chatId);
-                }
-            }
+            case Command.REMOVE -> sendResponse(buildRemoveResponse(argsList), chatId);
             default -> healthService.saveSites(stream(text.split(LF)).toList());
         }
     }
@@ -105,5 +100,14 @@ public class UpdateController {
                 .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(EMPTY_SITES_RESPONSE);
+    }
+
+    private String buildRemoveResponse(List<Long> argsList) {
+        if (!argsList.isEmpty()) {
+            healthService.removeSites(argsList);
+            return buildSitesResponse();
+        } else {
+            return NOTHING_TO_REMOVE_RESPONSE;
+        }
     }
 }

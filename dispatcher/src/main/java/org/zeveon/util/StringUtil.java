@@ -16,4 +16,5 @@ public class StringUtil {
     public static final String HTTP = "HTTP";
     public static final String EMPTY_HELP_RESPONSE = "There is no help yet";
     public static final String EMPTY_SITES_RESPONSE = "No sites left to check health";
+    public static final String NOTHING_TO_REMOVE_RESPONSE = "Arguments list is empty. Nothing to remove";
 }
