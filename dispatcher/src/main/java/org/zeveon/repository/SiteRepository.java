@@ -8,5 +8,5 @@ import org.zeveon.entity.Site;
  * @author Stanislav Vafin
  */
 @Repository
-public interface HealthRepository extends JpaRepository<Site, Long> {
+public interface SiteRepository extends JpaRepository<Site, Long> {
 }

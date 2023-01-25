@@ -8,10 +8,14 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.glassfish.grizzly.http.util.Header;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.data.Data;
 import org.zeveon.entity.Site;
+import org.zeveon.entity.Statistic;
+import org.zeveon.entity.StatisticId;
 import org.zeveon.model.BotInfo;
-import org.zeveon.repository.HealthRepository;
+import org.zeveon.model.Method;
+import org.zeveon.repository.SiteRepository;
 import org.zeveon.service.HealthCheckService;
 import org.zeveon.util.CurlRequest;
 
@@ -25,11 +29,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
+import static org.zeveon.model.Method.*;
 import static org.zeveon.util.StringUtil.HEALTH_TEMPLATE;
 import static org.zeveon.util.StringUtil.HTTP;
 
@@ -42,31 +46,38 @@ import static org.zeveon.util.StringUtil.HTTP;
 public class HealthCheckServiceImpl implements HealthCheckService {
 
     public static final int MILLIS_IN_SECOND = 1000;
-    private final HealthRepository healthRepository;
+    private final SiteRepository siteRepository;
 
+    @Transactional(rollbackFor = Exception.class)
     public void checkHealth(Site site, BotInfo botInfo) {
         var durationsRequestCountPair = Data.getRequestCount().get(site);
         var botUsername = botInfo.getBotUsername();
         var startTime = LocalDateTime.now();
         var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
         switch (botInfo.getHealthCheckMethod()) {
-            case APACHE_HTTP_CLIENT -> {
-                var responseCode = checkHealthApache(site, botUsername, connectionTimeout);
-                setResponseTime(site, durationsRequestCountPair, startTime, site::setApacheResponseTime);
-                site.setApacheResponseCode(responseCode);
-            }
-            case JAVA_HTTP_CLIENT -> {
-                var responseCode = checkHealthJava(site, botUsername, connectionTimeout);
-                setResponseTime(site, durationsRequestCountPair, startTime, site::setJavaResponseTime);
-                site.setJavaResponseCode(responseCode);
-            }
-            case CURL_PROCESS -> {
-                var responseCode = checkHealthCurl(site, botUsername, connectionTimeout);
-                setResponseTime(site, durationsRequestCountPair, startTime, site::setCurlResponseTime);
-                site.setCurlResponseCode(responseCode);
-            }
+            case APACHE_HTTP_CLIENT -> saveStatistic(
+                    site,
+                    APACHE_HTTP_CLIENT,
+                    durationsRequestCountPair,
+                    startTime,
+                    checkHealthApache(site, botUsername, connectionTimeout)
+            );
+            case JAVA_HTTP_CLIENT -> saveStatistic(
+                    site,
+                    JAVA_HTTP_CLIENT,
+                    durationsRequestCountPair,
+                    startTime,
+                    checkHealthJava(site, botUsername, connectionTimeout)
+            );
+            case CURL_PROCESS -> saveStatistic(
+                    site,
+                    CURL_PROCESS,
+                    durationsRequestCountPair,
+                    startTime,
+                    checkHealthCurl(site, botUsername, connectionTimeout)
+            );
         }
-        healthRepository.save(site);
+        siteRepository.save(site);
     }
 
     private int checkHealthApache(Site site, String botUsername, Integer connectionTimeout) {
@@ -140,19 +151,30 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private void setResponseTime(
-            Site site, Pair<List<Duration>, Integer> durationsRequestCountPair,
+    private void saveStatistic(
+            Site site,
+            Method method,
+            Pair<List<Duration>, Integer> durationsRequestCountPair,
             LocalDateTime startTime,
-            Consumer<Duration> responseTimeMethod
+            int responseCode
     ) {
         var durations = durationsRequestCountPair.getLeft();
         durations.add(Duration.between(startTime, LocalDateTime.now()));
         var count = durationsRequestCountPair.getRight();
         final var newCount = ++count;
-        responseTimeMethod.accept(durations.stream()
-                .reduce(Duration::plus)
-                .map(r -> r.dividedBy(newCount))
-                .orElse(Duration.ZERO));
+        var statistic = Statistic.builder()
+                .id(StatisticId.builder()
+                        .site(site)
+                        .method(method)
+                        .build())
+                .responseTime(durations.stream()
+                        .reduce(Duration::plus)
+                        .map(r -> r.dividedBy(newCount))
+                        .orElse(Duration.ZERO))
+                .responseCode(responseCode)
+                .build();
+        site.getStatistic().removeIf(s -> s.equals(statistic));
+        site.getStatistic().add(statistic);
         Data.getRequestCount().put(site, Pair.of(durations, newCount));
     }
 }

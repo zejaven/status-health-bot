@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2023-01-25-13-11-00_moving-statistic-into-separate-table" author="Stanislav Vafin">
+        <!--Creating separate table-->
+        <createTable tableName="statistic" schemaName="health">
+            <column name="method" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="statistic_pkey"
+                             checkConstraint="method in ('APACHE_HTTP_CLIENT','JAVA_HTTP_CLIENT','CURL_PROCESS')"/>
+            </column>
+            <column name="site_id" type="bigint">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="statistic_pkey"
+                             foreignKeyName="statistic_site_fk" referencedTableSchemaName="health"
+                             referencedTableName="site" referencedColumnNames="id"/>
+            </column>
+            <column name="response_code" type="integer"/>
+            <column name="response_time" type="numeric(21)"/>
+        </createTable>
+
+        <!--Moving data to new table-->
+        <sql>
+            INSERT INTO health.statistic (method, site_id, response_code, response_time)
+            SELECT 'APACHE_HTTP_CLIENT', id, apache_response_code, apache_response_time FROM health.site
+                UNION
+            SELECT 'JAVA_HTTP_CLIENT', id, java_response_code, java_response_time FROM health.site
+                UNION
+            SELECT 'CURL_PROCESS', id, curl_response_code, curl_response_time FROM health.site;
+        </sql>
+
+        <!--Dropping unnecessary columns-->
+        <dropColumn tableName="site" schemaName="health" columnName="apache_response_time"/>
+        <dropColumn tableName="site" schemaName="health" columnName="java_response_time"/>
+        <dropColumn tableName="site" schemaName="health" columnName="curl_response_time"/>
+        <dropColumn tableName="site" schemaName="health" columnName="apache_response_code"/>
+        <dropColumn tableName="site" schemaName="health" columnName="java_response_code"/>
+        <dropColumn tableName="site" schemaName="health" columnName="curl_response_code"/>
+
+        <!--Rollback-->
+        <rollback>
+            <addColumn tableName="site" schemaName="health">
+                <column name="apache_response_time" type="numeric(21)"/>
+                <column name="java_response_time" type="numeric(21)"/>
+                <column name="curl_response_time" type="numeric(21)"/>
+                <column name="apache_response_code" type="integer"/>
+                <column name="java_response_code" type="integer"/>
+                <column name="curl_response_code" type="integer"/>
+            </addColumn>
+            <sql>
+                with all_sites as (
+                    select id as site_id from health.site
+                ), apache_data as (
+                    select site_id,
+                           response_time as apache_response_time,
+                           response_code as apache_response_code
+                    from health.statistic
+                    where method = 'APACHE_HTTP_CLIENT'
+                ), java_data as (
+                    select site_id,
+                           response_time as java_response_time,
+                           response_code as java_response_code
+                    from health.statistic
+                    where method = 'JAVA_HTTP_CLIENT'
+                ), curl_data as (
+                    select site_id,
+                           response_time as curl_response_time,
+                           response_code as curl_response_code
+                    from health.statistic
+                    where method = 'CURL_PROCESS'
+                ), all_data as (
+                select als.site_id,
+                       ad.apache_response_time,
+                       jd.java_response_time,
+                       cd.curl_response_time,
+                       ad.apache_response_code,
+                       jd.java_response_code,
+                       cd.curl_response_code
+                from all_sites als
+                    left join apache_data ad on als.site_id = ad.site_id
+                    left join java_data jd on als.site_id = jd.site_id
+                    left join curl_data cd on als.site_id = cd.site_id
+                )
+                update health.site
+                set apache_response_time = all_data.apache_response_time,
+                    java_response_time = all_data.java_response_time,
+                    curl_response_time = all_data.curl_response_time,
+                    apache_response_code = all_data.apache_response_code,
+                    java_response_code = all_data.java_response_code,
+                    curl_response_code = all_data.curl_response_code
+                from all_data
+                where id = all_data.site_id;
+            </sql>
+            <dropTable tableName="statistic" schemaName="health"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

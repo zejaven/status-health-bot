@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.cache.Cache;
 import org.zeveon.data.Data;
 import org.zeveon.entity.Site;
-import org.zeveon.repository.HealthRepository;
+import org.zeveon.repository.SiteRepository;
 import org.zeveon.service.HealthService;
 
 import java.util.List;
@@ -20,10 +20,10 @@ import java.util.List;
 @AllArgsConstructor
 public class HealthServiceImpl implements HealthService {
 
-    private final HealthRepository healthRepository;
+    private final SiteRepository siteRepository;
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = Cache.SITES, allEntries = true)
     public void saveSites(List<String> siteUrls) {
         var currentSiteUrls = getSites().stream().map(Site::getUrl).toList();
@@ -31,7 +31,7 @@ public class HealthServiceImpl implements HealthService {
                 .filter(s -> !currentSiteUrls.contains(s))
                 .map(s -> Site.builder().url(s).build())
                 .toList();
-        healthRepository.saveAll(sites);
+        siteRepository.saveAll(sites);
         Data.addAll(sites);
     }
 
@@ -39,14 +39,14 @@ public class HealthServiceImpl implements HealthService {
     @Transactional(readOnly = true)
     @Cacheable(Cache.SITES)
     public List<Site> getSites() {
-        return healthRepository.findAll();
+        return siteRepository.findAll();
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = Cache.SITES, allEntries = true)
     public void removeSites(List<Long> sites) {
-        healthRepository.deleteAllById(sites);
+        siteRepository.deleteAllById(sites);
         Data.removeAllById(sites);
     }
 }

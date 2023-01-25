@@ -3,7 +3,8 @@ package org.zeveon.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -11,7 +12,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Stanislav Vafin
  */
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,23 +30,9 @@ public class Site {
     @Column(name = "url")
     private String url;
 
-    @Column(name = "apache_response_time")
-    private Duration apacheResponseTime;
-
-    @Column(name = "java_response_time")
-    private Duration javaResponseTime;
-
-    @Column(name = "curl_response_time")
-    private Duration curlResponseTime;
-
-    @Column(name = "apache_response_code")
-    private Integer apacheResponseCode;
-
-    @Column(name = "java_response_code")
-    private Integer javaResponseCode;
-
-    @Column(name = "curl_response_code")
-    private Integer curlResponseCode;
+    @OneToMany(mappedBy = "id.site", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Builder.Default
+    private Set<Statistic> statistic = new HashSet<>();
 
     @Transient
     @Builder.Default
