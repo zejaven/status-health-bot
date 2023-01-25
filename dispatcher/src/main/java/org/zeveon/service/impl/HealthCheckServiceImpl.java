@@ -3,6 +3,7 @@ package org.zeveon.service.impl;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.glassfish.grizzly.http.util.Header;
@@ -40,25 +41,27 @@ import static org.zeveon.util.StringUtil.HTTP;
 @AllArgsConstructor
 public class HealthCheckServiceImpl implements HealthCheckService {
 
+    public static final int MILLIS_IN_SECOND = 1000;
     private final HealthRepository healthRepository;
 
     public void checkHealth(Site site, BotInfo botInfo) {
         var durationsRequestCountPair = Data.getRequestCount().get(site);
         var botUsername = botInfo.getBotUsername();
         var startTime = LocalDateTime.now();
+        var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
         switch (botInfo.getHealthCheckMethod()) {
             case APACHE_HTTP_CLIENT -> {
-                var responseCode = checkHealthApache(site, botUsername);
+                var responseCode = checkHealthApache(site, botUsername, connectionTimeout);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setApacheResponseTime);
                 site.setApacheResponseCode(responseCode);
             }
             case JAVA_HTTP_CLIENT -> {
-                var responseCode = checkHealthJava(site, botUsername);
+                var responseCode = checkHealthJava(site, botUsername, connectionTimeout);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setJavaResponseTime);
                 site.setJavaResponseCode(responseCode);
             }
             case CURL_PROCESS -> {
-                var responseCode = checkHealthCurl(site, botUsername);
+                var responseCode = checkHealthCurl(site, botUsername, connectionTimeout);
                 setResponseTime(site, durationsRequestCountPair, startTime, site::setCurlResponseTime);
                 site.setCurlResponseCode(responseCode);
             }
@@ -66,8 +69,11 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         healthRepository.save(site);
     }
 
-    private int checkHealthApache(Site site, String botUsername) {
+    private int checkHealthApache(Site site, String botUsername, Integer connectionTimeout) {
         try (var httpClient = HttpClientBuilder.create()
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setConnectTimeout(connectionTimeout * MILLIS_IN_SECOND)
+                        .build())
                 .setUserAgent(botUsername)
                 .build()) {
             var request = new HttpGet(site.getUrl());
@@ -81,14 +87,14 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthJava(Site site, String botUsername) {
+    private int checkHealthJava(Site site, String botUsername, Integer connectionTimeout) {
         var httpClient = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         var request = HttpRequest.newBuilder()
                 .header(Header.UserAgent.name(), botUsername)
                 .uri(URI.create(site.getUrl()))
-                .timeout(Duration.ofSeconds(3L))
+                .timeout(Duration.ofSeconds(connectionTimeout))
                 .GET().build();
         try {
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -101,14 +107,14 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthCurl(Site site, String botUsername) {
+    private int checkHealthCurl(Site site, String botUsername, Integer connectionTimeout) {
         try {
             var process = Runtime.getRuntime()
                     .exec(CurlRequest.builder(site.getUrl())
                             .head()
                             .location()
                             .silent()
-                            .connectTimeout(3)
+                            .connectTimeout(connectionTimeout)
                             .header(Header.UserAgent.name(), botUsername)
                             .build()
                             .getCommand());

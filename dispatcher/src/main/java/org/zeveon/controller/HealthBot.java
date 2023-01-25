@@ -30,6 +30,9 @@ public class HealthBot extends TelegramLongPollingBot {
     @NotNull
     private Method method;
 
+    @Value("${health-check.connection-timeout}")
+    private Integer connectionTimeout;
+
     private final UpdateController updateController;
 
     public HealthBot(UpdateController updateController) {
@@ -59,6 +62,7 @@ public class HealthBot extends TelegramLongPollingBot {
     public BotInfo getBotInfo() {
         return BotInfo.builder()
                 .healthCheckMethod(method)
+                .healthCheckConnectionTimeout(connectionTimeout)
                 .botUsername(getBotUsername())
                 .build();
     }
