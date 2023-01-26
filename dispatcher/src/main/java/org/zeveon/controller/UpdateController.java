@@ -3,6 +3,7 @@ package org.zeveon.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -10,6 +11,7 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.data.Data;
 import org.zeveon.model.Command;
 import org.zeveon.service.HealthService;
+import org.zeveon.service.StatisticService;
 
 import java.util.List;
 
@@ -27,10 +29,13 @@ public class UpdateController {
 
     private final HealthService healthService;
 
+    private final StatisticService statisticService;
+
     private HealthBot healthBot;
 
-    public UpdateController(HealthService healthService) {
+    public UpdateController(HealthService healthService, StatisticService statisticService) {
         this.healthService = healthService;
+        this.statisticService = statisticService;
     }
 
     public void registerBot(HealthBot healthBot) {
@@ -69,6 +74,7 @@ public class UpdateController {
             case Command.HELP -> sendResponse(buildHelpResponse(), chatId);
             case Command.GET_SITES -> sendResponse(buildSitesResponse(), chatId);
             case Command.REMOVE -> sendResponse(buildRemoveResponse(argsList), chatId);
+            case Command.STATISTIC -> sendResponse(buildStatisticResponse(), chatId);
             default -> healthService.saveSites(stream(text.split(LF)).toList());
         }
     }
@@ -80,9 +86,22 @@ public class UpdateController {
         sendResponse(response);
     }
 
+    private void sendResponse(SendDocument document, Long chatId) {
+        document.setChatId(chatId);
+        sendResponse(document);
+    }
+
     public void sendResponse(SendMessage message) {
         try {
             healthBot.execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendResponse(SendDocument document) {
+        try {
+            healthBot.execute(document);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
@@ -109,5 +128,12 @@ public class UpdateController {
         } else {
             return NOTHING_TO_REMOVE_RESPONSE;
         }
+    }
+
+    private SendDocument buildStatisticResponse() {
+        var response = new SendDocument();
+        var inputFile = statisticService.generateStatistic();
+        inputFile.ifPresent(response::setDocument);
+        return response;
     }
 }
