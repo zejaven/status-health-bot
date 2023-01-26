@@ -43,9 +43,8 @@ public class StatisticServiceImpl implements StatisticService {
         try (var workbook = new XSSFWorkbook(); var outputStream = new ByteArrayOutputStream()) {
             buildStatistic(workbook);
             workbook.write(outputStream);
-            var inputFile = new InputFile();
-            inputFile.setMedia(new ByteArrayInputStream(outputStream.toByteArray()), DEFAULT_STATISTIC_FILE_NAME);
-            return of(inputFile);
+            return of(new InputFile()
+                    .setMedia(new ByteArrayInputStream(outputStream.toByteArray()), DEFAULT_STATISTIC_FILE_NAME));
         } catch (IOException e) {
             log.error(e.getMessage());
             return empty();

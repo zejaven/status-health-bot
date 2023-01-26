@@ -21,6 +21,7 @@ public class StringUtil {
     public static final String EMPTY_HELP_RESPONSE = "There is no help yet";
     public static final String EMPTY_SITES_RESPONSE = "No sites left to check health";
     public static final String NOTHING_TO_REMOVE_RESPONSE = "Arguments list is empty. Nothing to remove";
+    public static final String STATISTIC_GENERATION_FAILED = "Something went wrong with statistic generation. File is missing";
     public static final String DEFAULT_STATISTIC_FILE_NAME = "speed-test-statistics.xlsx";
     public static final String RESPONSE_TIME = "время ответа";
     public static final String RESPONSE_CODE = "код ответа";

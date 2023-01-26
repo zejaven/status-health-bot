@@ -5,6 +5,7 @@ import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -14,6 +15,7 @@ import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
@@ -86,9 +88,18 @@ public class UpdateController {
         sendResponse(response);
     }
 
-    private void sendResponse(SendDocument document, Long chatId) {
-        document.setChatId(chatId);
-        sendResponse(document);
+    private void sendResponse(Optional<InputFile> inputFile, Long chatId) {
+        inputFile.ifPresentOrElse(
+                i -> sendResponse(i, chatId),
+                () -> sendResponse(STATISTIC_GENERATION_FAILED, chatId)
+        );
+    }
+
+    private void sendResponse(InputFile inputFile, Long chatId) {
+        var response = new SendDocument();
+        response.setChatId(chatId);
+        response.setDocument(inputFile);
+        sendResponse(response);
     }
 
     public void sendResponse(SendMessage message) {
@@ -130,10 +141,7 @@ public class UpdateController {
         }
     }
 
-    private SendDocument buildStatisticResponse() {
-        var response = new SendDocument();
-        var inputFile = statisticService.generateStatistic();
-        inputFile.ifPresent(response::setDocument);
-        return response;
+    private Optional<InputFile> buildStatisticResponse() {
+        return statisticService.generateStatistic();
     }
 }
