@@ -54,12 +54,12 @@ public class StatisticServiceImpl implements StatisticService {
         var sheet = workbook.createSheet();
         var rowHeader = sheet.createRow(0);
         rowHeader.createCell(0).setCellValue(URL);
-        rowHeader.createCell(1).setCellValue(DEFAULT_TEMPLATE.formatted(APACHE_HTTP_CLIENT.name(), RESPONSE_TIME));
-        rowHeader.createCell(2).setCellValue(DEFAULT_TEMPLATE.formatted(JAVA_HTTP_CLIENT.name(), RESPONSE_TIME));
-        rowHeader.createCell(3).setCellValue(DEFAULT_TEMPLATE.formatted(CURL_PROCESS.name(), RESPONSE_TIME));
-        rowHeader.createCell(4).setCellValue(DEFAULT_TEMPLATE.formatted(APACHE_HTTP_CLIENT.name(), RESPONSE_CODE));
-        rowHeader.createCell(5).setCellValue(DEFAULT_TEMPLATE.formatted(JAVA_HTTP_CLIENT.name(), RESPONSE_CODE));
-        rowHeader.createCell(6).setCellValue(DEFAULT_TEMPLATE.formatted(CURL_PROCESS.name(), RESPONSE_CODE));
+        rowHeader.createCell(1).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(APACHE_HTTP_CLIENT.getDescription(), RESPONSE_TIME));
+        rowHeader.createCell(2).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(JAVA_HTTP_CLIENT.getDescription(), RESPONSE_TIME));
+        rowHeader.createCell(3).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(CURL_PROCESS.getDescription(), RESPONSE_TIME));
+        rowHeader.createCell(4).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(APACHE_HTTP_CLIENT.getDescription(), RESPONSE_CODE));
+        rowHeader.createCell(5).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(JAVA_HTTP_CLIENT.getDescription(), RESPONSE_CODE));
+        rowHeader.createCell(6).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(CURL_PROCESS.getDescription(), RESPONSE_CODE));
         var sites = healthService.getSites();
         for (int i = 0; i < sites.size(); i++) {
             var row = sheet.createRow(i + 1);
