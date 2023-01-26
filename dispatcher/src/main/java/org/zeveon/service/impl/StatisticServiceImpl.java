@@ -8,18 +8,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.zeveon.cache.Cache;
+import org.zeveon.entity.Site;
 import org.zeveon.entity.Statistic;
+import org.zeveon.model.Method;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static org.zeveon.model.Method.*;
 import static org.zeveon.util.StringUtil.*;
 
 /**
@@ -54,46 +56,42 @@ public class StatisticServiceImpl implements StatisticService {
         var sheet = workbook.createSheet();
         var rowHeader = sheet.createRow(0);
         rowHeader.createCell(0).setCellValue(URL);
-        rowHeader.createCell(1).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(APACHE_HTTP_CLIENT.getDescription(), RESPONSE_TIME));
-        rowHeader.createCell(2).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(JAVA_HTTP_CLIENT.getDescription(), RESPONSE_TIME));
-        rowHeader.createCell(3).setCellValue(STATISTIC_TEMPLATE_TIME.formatted(CURL_PROCESS.getDescription(), RESPONSE_TIME));
-        rowHeader.createCell(4).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(APACHE_HTTP_CLIENT.getDescription(), RESPONSE_CODE));
-        rowHeader.createCell(5).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(JAVA_HTTP_CLIENT.getDescription(), RESPONSE_CODE));
-        rowHeader.createCell(6).setCellValue(STATISTIC_TEMPLATE_CODE.formatted(CURL_PROCESS.getDescription(), RESPONSE_CODE));
+        for (int i = 0; i < Method.values().length; i++) {
+            rowHeader.createCell(i + 1)
+                    .setCellValue(STATISTIC_TEMPLATE_TIME.formatted(Method.values()[i].getDescription(), RESPONSE_TIME));
+        }
+        for (int i = 0; i < Method.values().length; i++) {
+            rowHeader.createCell(i + 4)
+                    .setCellValue(STATISTIC_TEMPLATE_CODE.formatted(Method.values()[i].getDescription(), RESPONSE_CODE));
+        }
         var sites = healthService.getSites();
         for (int i = 0; i < sites.size(); i++) {
             var row = sheet.createRow(i + 1);
             row.createCell(0).setCellValue(sites.get(i).getUrl());
-            row.createCell(1).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(APACHE_HTTP_CLIENT))
-                    .map(s -> s.getResponseTime().toNanos())
-                    .map(n -> n / NANOS_IN_SECOND)
-                    .findAny().orElse(Double.NaN));
-            row.createCell(2).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(JAVA_HTTP_CLIENT))
-                    .map(s -> s.getResponseTime().toNanos())
-                    .map(n -> n / NANOS_IN_SECOND)
-                    .findAny().orElse(Double.NaN));
-            row.createCell(3).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(CURL_PROCESS))
-                    .map(s -> s.getResponseTime().toNanos())
-                    .map(n -> n / NANOS_IN_SECOND)
-                    .findAny().orElse(Double.NaN));
-            row.createCell(4).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(APACHE_HTTP_CLIENT))
-                    .map(Statistic::getResponseCode)
-                    .findAny().orElse(0));
-            row.createCell(5).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(JAVA_HTTP_CLIENT))
-                    .map(Statistic::getResponseCode)
-                    .findAny().orElse(0));
-            row.createCell(6).setCellValue(sites.get(i).getStatistic().stream()
-                    .filter(s -> s.getId().getMethod().equals(CURL_PROCESS))
-                    .map(Statistic::getResponseCode)
-                    .findAny().orElse(0));
+            for (int j = 0; j < Method.values().length; j++) {
+                row.createCell(j + 1).setCellValue(getResponseTimeInSeconds(sites, i, Method.values()[j]));
+            }
+            for (int j = 0; j < Method.values().length; j++) {
+                row.createCell(j + 4).setCellValue(getResponseCode(sites, i, Method.values()[j]));
+            }
         }
         for (int i = 0; i < 7; i++) {
             sheet.autoSizeColumn(i);
         }
+    }
+
+    private Double getResponseTimeInSeconds(List<Site> sites, int i, Method apacheHttpClient) {
+        return sites.get(i).getStatistic().stream()
+                .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
+                .map(s -> s.getResponseTime().toNanos())
+                .map(n -> n / NANOS_IN_SECOND)
+                .findAny().orElse(Double.NaN);
+    }
+
+    private Integer getResponseCode(List<Site> sites, int i, Method apacheHttpClient) {
+        return sites.get(i).getStatistic().stream()
+                .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
+                .map(Statistic::getResponseCode)
+                .findAny().orElse(0);
     }
 }
