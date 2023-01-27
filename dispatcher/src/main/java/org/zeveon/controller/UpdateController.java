@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.data.Data;
+import org.zeveon.entity.Site;
 import org.zeveon.model.Command;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
@@ -19,7 +20,9 @@ import java.util.Optional;
 
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
-import static org.apache.commons.lang3.StringUtils.*;
+import static java.util.Comparator.comparing;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.LF;
 import static org.zeveon.util.StringUtil.*;
 
 /**
@@ -67,17 +70,15 @@ public class UpdateController {
         var message = update.getMessage();
         var chatId = message.getChatId();
         var text = message.getText();
-        var command = text.split(SPACE)[0];
-        var args = text.replace(command, EMPTY);
-        List<Long> argsList = !args.isEmpty()
-                ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).toList()
-                : emptyList();
+        var command = text.split(WHITESPACE_CHARACTER)[0];
+        var args = text.replace(command, EMPTY).strip();
         switch (command) {
             case Command.HELP -> sendResponse(buildHelpResponse(), chatId);
+            case Command.ADD -> sendResponse(buildAddResponse(args), chatId);
             case Command.GET_SITES -> sendResponse(buildSitesResponse(), chatId);
-            case Command.REMOVE -> sendResponse(buildRemoveResponse(argsList), chatId);
+            case Command.REMOVE -> sendResponse(buildRemoveResponse(args), chatId);
             case Command.STATISTIC -> sendResponse(buildStatisticResponse(), chatId);
-            default -> healthService.saveSites(stream(text.split(LF)).toList());
+            default -> sendResponse(buildEmptyResponse(), chatId);
         }
     }
 
@@ -118,6 +119,10 @@ public class UpdateController {
         }
     }
 
+    private String buildEmptyResponse() {
+        return EMPTY_RESPONSE;
+    }
+
     private String buildHelpResponse() {
         return Command.LIST.entrySet().stream()
                 .map(e -> HELP_TEMPLATE.formatted(e.getKey(), e.getValue()))
@@ -125,14 +130,30 @@ public class UpdateController {
                 .orElse(EMPTY_HELP_RESPONSE);
     }
 
+    private String buildAddResponse(String args) {
+        List<String> argsList = !args.isEmpty()
+                ? stream(args.split(LF)).map(String::strip).toList()
+                : emptyList();
+        if (!argsList.isEmpty()) {
+            healthService.saveSites(argsList);
+            return buildSitesResponse();
+        } else {
+            return NOTHING_TO_ADD_RESPONSE;
+        }
+    }
+
     private String buildSitesResponse() {
         return healthService.getSites().stream()
+                .sorted(comparing(Site::getId))
                 .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(EMPTY_SITES_RESPONSE);
     }
 
-    private String buildRemoveResponse(List<Long> argsList) {
+    private String buildRemoveResponse(String args) {
+        List<Long> argsList = !args.isEmpty()
+                ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).toList()
+                : emptyList();
         if (!argsList.isEmpty()) {
             healthService.removeSites(argsList);
             return buildSitesResponse();

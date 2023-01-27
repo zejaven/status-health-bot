@@ -8,7 +8,8 @@ import java.util.Map;
 public class Command {
 
     public static final String HELP = "/help";
-    public static final String GET_SITES = "/get-sites";
+    public static final String ADD = "/add";
+    public static final String GET_SITES = "/get_sites";
     public static final String REMOVE = "/remove";
     public static final String STATISTIC = "/statistic";
 

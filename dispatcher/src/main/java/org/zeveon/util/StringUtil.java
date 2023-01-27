@@ -7,6 +7,7 @@ public class StringUtil {
     public static final String COMMA = ",";
     public static final String QUOT = "\"";
     public static final String COLON = ":";
+    public static final String WHITESPACE_CHARACTER = "\\s";
 
     public static final String HELP_TEMPLATE = "%s - %s";
     public static final String NEW_LINE_TEMPLATE = "%s\n%s";
@@ -18,7 +19,9 @@ public class StringUtil {
     public static final String HTTP = "HTTP";
     public static final String URL = "URL";
 
+    public static final String EMPTY_RESPONSE = "There is no such command. Use /help to check which commands are available";
     public static final String EMPTY_HELP_RESPONSE = "There is no help yet";
+    public static final String NOTHING_TO_ADD_RESPONSE = "Arguments list is empty. Nothing to add";
     public static final String EMPTY_SITES_RESPONSE = "No sites left to check health";
     public static final String NOTHING_TO_REMOVE_RESPONSE = "Arguments list is empty. Nothing to remove";
     public static final String STATISTIC_GENERATION_FAILED = "Something went wrong with statistic generation. File is missing";
