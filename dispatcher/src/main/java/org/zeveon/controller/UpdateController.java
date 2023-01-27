@@ -1,6 +1,7 @@
 package org.zeveon.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
@@ -23,7 +24,8 @@ import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.LF;
-import static org.zeveon.util.StringUtil.*;
+import static org.zeveon.util.StringUtil.COMMA;
+import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
 
 /**
  * @author Stanislav Vafin
@@ -32,13 +34,20 @@ import static org.zeveon.util.StringUtil.*;
 @Controller
 public class UpdateController {
 
+    public static final String HELP_TEMPLATE = "%s - %s";
+    public static final String NEW_LINE_TEMPLATE = "%s\n%s";
+    public static final String SITE_LIST_TEMPLATE = "%s: %s";
+
+    private final MessageSource messageSource;
+
     private final HealthService healthService;
 
     private final StatisticService statisticService;
 
     private HealthBot healthBot;
 
-    public UpdateController(HealthService healthService, StatisticService statisticService) {
+    public UpdateController(MessageSource messageSource, HealthService healthService, StatisticService statisticService) {
+        this.messageSource = messageSource;
         this.healthService = healthService;
         this.statisticService = statisticService;
     }
@@ -73,12 +82,12 @@ public class UpdateController {
         var command = text.split(WHITESPACE_CHARACTER)[0];
         var args = text.replace(command, EMPTY).strip();
         switch (command) {
-            case Command.HELP -> sendResponse(buildHelpResponse(), chatId);
-            case Command.ADD -> sendResponse(buildAddResponse(args), chatId);
-            case Command.GET_SITES -> sendResponse(buildSitesResponse(), chatId);
-            case Command.REMOVE -> sendResponse(buildRemoveResponse(args), chatId);
-            case Command.STATISTIC -> sendResponse(buildStatisticResponse(), chatId);
-            default -> sendResponse(buildEmptyResponse(), chatId);
+            case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
+            case Command.ADD -> sendResponse(buildAddResponse(args, chatId), chatId);
+            case Command.GET_SITES -> sendResponse(buildSitesResponse(chatId), chatId);
+            case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
+            case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+            default -> sendResponse(buildEmptyResponse(chatId), chatId);
         }
     }
 
@@ -92,7 +101,9 @@ public class UpdateController {
     private void sendResponse(Optional<InputFile> inputFile, Long chatId) {
         inputFile.ifPresentOrElse(
                 i -> sendResponse(i, chatId),
-                () -> sendResponse(STATISTIC_GENERATION_FAILED, chatId)
+                () -> sendResponse(messageSource.getMessage(
+                        "message.statistic_generation_failed", null, healthService.getLocale(chatId)
+                        ), chatId)
         );
     }
 
@@ -119,50 +130,50 @@ public class UpdateController {
         }
     }
 
-    private String buildEmptyResponse() {
-        return EMPTY_RESPONSE;
+    private String buildEmptyResponse(Long chatId) {
+        return messageSource.getMessage("message.empty", null, healthService.getLocale(chatId));
     }
 
-    private String buildHelpResponse() {
+    private String buildHelpResponse(Long chatId) {
         return Command.LIST.entrySet().stream()
                 .map(e -> HELP_TEMPLATE.formatted(e.getKey(), e.getValue()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(EMPTY_HELP_RESPONSE);
+                .orElse(messageSource.getMessage("message.empty_help", null, healthService.getLocale(chatId)));
     }
 
-    private String buildAddResponse(String args) {
+    private String buildAddResponse(String args, Long chatId) {
         List<String> argsList = !args.isEmpty()
                 ? stream(args.split(LF)).map(String::strip).toList()
                 : emptyList();
         if (!argsList.isEmpty()) {
             healthService.saveSites(argsList);
-            return buildSitesResponse();
+            return buildSitesResponse(chatId);
         } else {
-            return NOTHING_TO_ADD_RESPONSE;
+            return messageSource.getMessage("message.nothing_to_add", null, healthService.getLocale(chatId));
         }
     }
 
-    private String buildSitesResponse() {
+    private String buildSitesResponse(Long chatId) {
         return healthService.getSites().stream()
                 .sorted(comparing(Site::getId))
                 .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(EMPTY_SITES_RESPONSE);
+                .orElse(messageSource.getMessage("message.empty_sites", null, healthService.getLocale(chatId)));
     }
 
-    private String buildRemoveResponse(String args) {
+    private String buildRemoveResponse(String args, Long chatId) {
         List<Long> argsList = !args.isEmpty()
                 ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).toList()
                 : emptyList();
         if (!argsList.isEmpty()) {
             healthService.removeSites(argsList);
-            return buildSitesResponse();
+            return buildSitesResponse(chatId);
         } else {
-            return NOTHING_TO_REMOVE_RESPONSE;
+            return messageSource.getMessage("message.nothing_to_remove", null, healthService.getLocale(chatId));
         }
     }
 
-    private Optional<InputFile> buildStatisticResponse() {
-        return statisticService.generateStatistic();
+    private Optional<InputFile> buildStatisticResponse(Long chatId) {
+        return statisticService.generateStatistic(chatId);
     }
 }

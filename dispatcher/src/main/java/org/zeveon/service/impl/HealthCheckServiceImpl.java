@@ -34,8 +34,6 @@ import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
 import static org.zeveon.model.Method.*;
-import static org.zeveon.util.StringUtil.HEALTH_TEMPLATE;
-import static org.zeveon.util.StringUtil.HTTP;
 
 /**
  * @author Stanislav Vafin
@@ -46,6 +44,9 @@ import static org.zeveon.util.StringUtil.HTTP;
 public class HealthCheckServiceImpl implements HealthCheckService {
 
     public static final int MILLIS_IN_SECOND = 1000;
+    public static final String HEALTH_TEMPLATE = "%s | %s";
+    public static final String HTTP = "HTTP";
+
     private final SiteRepository siteRepository;
 
     @Transactional(rollbackFor = Exception.class)

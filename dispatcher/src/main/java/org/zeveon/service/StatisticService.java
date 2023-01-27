@@ -9,5 +9,5 @@ import java.util.Optional;
  */
 public interface StatisticService {
 
-    Optional<InputFile> generateStatistic();
+    Optional<InputFile> generateStatistic(Long chatId);
 }

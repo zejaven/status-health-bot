@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
@@ -18,11 +19,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static org.zeveon.util.StringUtil.*;
 
 /**
  * @author Stanislav Vafin
@@ -33,15 +34,26 @@ import static org.zeveon.util.StringUtil.*;
 public class StatisticServiceImpl implements StatisticService {
 
     public static final double NANOS_IN_SECOND = 1_000_000_000.0;
+    public static final String DEFAULT_STATISTIC_FILE_NAME = "speed-test-statistic.xlsx";
+    public static final String STATISTIC_TEMPLATE_TIME = "%s, %s, %s";
+    public static final String STATISTIC_TEMPLATE_CODE = "%s, %s";
+    public static final String URL = "URL";
+    public static final Map<Method, String> DESCRIPTION = Map.of(
+            Method.APACHE_HTTP_CLIENT, "method.apache",
+            Method.JAVA_HTTP_CLIENT, "method.java",
+            Method.CURL_PROCESS, "method.curl"
+    );
+
+    private final MessageSource messageSource;
 
     private final HealthService healthService;
 
     @Override
     @CacheEvict(value = Cache.SITES, allEntries = true)
     @Transactional(readOnly = true)
-    public Optional<InputFile> generateStatistic() {
+    public Optional<InputFile> generateStatistic(Long chatId) {
         try (var workbook = new XSSFWorkbook(); var outputStream = new ByteArrayOutputStream()) {
-            buildStatistic(workbook);
+            buildStatistic(workbook, chatId);
             workbook.write(outputStream);
             return of(new InputFile()
                     .setMedia(new ByteArrayInputStream(outputStream.toByteArray()), DEFAULT_STATISTIC_FILE_NAME));
@@ -51,17 +63,25 @@ public class StatisticServiceImpl implements StatisticService {
         }
     }
 
-    private void buildStatistic(XSSFWorkbook workbook) {
+    private void buildStatistic(XSSFWorkbook workbook, Long chatId) {
+        var locale = healthService.getLocale(chatId);
         var sheet = workbook.createSheet();
         var rowHeader = sheet.createRow(0);
         rowHeader.createCell(0).setCellValue(URL);
         for (int i = 0; i < Method.values().length; i++) {
             rowHeader.createCell(i + 1)
-                    .setCellValue(STATISTIC_TEMPLATE_TIME.formatted(Method.values()[i].getDescription(), RESPONSE_TIME));
+                    .setCellValue(STATISTIC_TEMPLATE_TIME.formatted(
+                            messageSource.getMessage(DESCRIPTION.get(Method.values()[i]), null, locale),
+                            messageSource.getMessage("statistic.response_time", null, locale),
+                            messageSource.getMessage("statistic.secs", null, locale)
+                    ));
         }
         for (int i = 0; i < Method.values().length; i++) {
             rowHeader.createCell(i + 4)
-                    .setCellValue(STATISTIC_TEMPLATE_CODE.formatted(Method.values()[i].getDescription(), RESPONSE_CODE));
+                    .setCellValue(STATISTIC_TEMPLATE_CODE.formatted(
+                            messageSource.getMessage(DESCRIPTION.get(Method.values()[i]), null, healthService.getLocale(chatId)),
+                            messageSource.getMessage("statistic.response_code", null, locale)
+                    ));
         }
         var sites = healthService.getSites();
         for (int i = 0; i < sites.size(); i++) {
