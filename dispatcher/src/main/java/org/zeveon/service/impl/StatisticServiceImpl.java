@@ -1,6 +1,6 @@
 package org.zeveon.service.impl;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.cache.annotation.CacheEvict;
@@ -30,7 +30,7 @@ import static java.util.Optional.of;
  */
 @Slf4j
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class StatisticServiceImpl implements StatisticService {
 
     public static final double NANOS_IN_SECOND = 1_000_000_000.0;

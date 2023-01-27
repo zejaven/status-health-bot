@@ -1,5 +1,6 @@
 package org.zeveon.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
@@ -32,6 +33,7 @@ import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
  */
 @Slf4j
 @Controller
+@RequiredArgsConstructor
 public class UpdateController {
 
     public static final String HELP_TEMPLATE = "%s - %s";
@@ -45,12 +47,6 @@ public class UpdateController {
     private final StatisticService statisticService;
 
     private HealthBot healthBot;
-
-    public UpdateController(MessageSource messageSource, HealthService healthService, StatisticService statisticService) {
-        this.messageSource = messageSource;
-        this.healthService = healthService;
-        this.statisticService = statisticService;
-    }
 
     public void registerBot(HealthBot healthBot) {
         this.healthBot = healthBot;
@@ -114,7 +110,7 @@ public class UpdateController {
         sendResponse(response);
     }
 
-    public void sendResponse(SendMessage message) {
+    private void sendResponse(SendMessage message) {
         try {
             healthBot.execute(message);
         } catch (TelegramApiException e) {
@@ -122,7 +118,7 @@ public class UpdateController {
         }
     }
 
-    public void sendResponse(SendDocument document) {
+    private void sendResponse(SendDocument document) {
         try {
             healthBot.execute(document);
         } catch (TelegramApiException e) {

@@ -1,6 +1,6 @@
 package org.zeveon.service.impl;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.Locale;
  * @author Stanislav Vafin
  */
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class HealthServiceImpl implements HealthService {
 
     private final SiteRepository siteRepository;

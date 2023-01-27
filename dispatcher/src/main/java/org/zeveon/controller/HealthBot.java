@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
@@ -15,8 +16,9 @@ import org.zeveon.model.Method;
 /**
  * @author Stanislav Vafin
  */
-@PropertySource("classpath:hidden.properties")
 @Component
+@RequiredArgsConstructor
+@PropertySource("classpath:hidden.properties")
 public class HealthBot extends TelegramLongPollingBot {
 
     @Value("${bot.token}")
@@ -34,10 +36,6 @@ public class HealthBot extends TelegramLongPollingBot {
     private Integer connectionTimeout;
 
     private final UpdateController updateController;
-
-    public HealthBot(UpdateController updateController) {
-        this.updateController = updateController;
-    }
 
     @PostConstruct
     public void init() {
