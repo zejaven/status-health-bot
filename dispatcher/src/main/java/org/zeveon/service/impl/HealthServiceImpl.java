@@ -12,7 +12,6 @@ import org.zeveon.repository.SiteRepository;
 import org.zeveon.service.HealthService;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * @author Stanislav Vafin
@@ -49,11 +48,5 @@ public class HealthServiceImpl implements HealthService {
     public void removeSites(List<Long> sites) {
         siteRepository.deleteAllById(sites);
         Data.removeAllById(sites);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Locale getLocale(Long chatId) {
-        return Locale.forLanguageTag("ru");
     }
 }

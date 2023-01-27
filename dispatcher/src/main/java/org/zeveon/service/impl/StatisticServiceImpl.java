@@ -12,6 +12,7 @@ import org.zeveon.cache.Cache;
 import org.zeveon.entity.Site;
 import org.zeveon.entity.Statistic;
 import org.zeveon.model.Method;
+import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
 
@@ -19,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -48,6 +50,8 @@ public class StatisticServiceImpl implements StatisticService {
 
     private final HealthService healthService;
 
+    private final ChatSettingsService chatSettingsService;
+
     @Override
     @CacheEvict(value = Cache.SITES, allEntries = true)
     @Transactional(readOnly = true)
@@ -64,23 +68,23 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     private void buildStatistic(XSSFWorkbook workbook, Long chatId) {
-        var locale = healthService.getLocale(chatId);
+        var locale = chatSettingsService.getLocale(chatId);
         var sheet = workbook.createSheet();
         var rowHeader = sheet.createRow(0);
         rowHeader.createCell(0).setCellValue(URL);
         for (int i = 0; i < Method.values().length; i++) {
             rowHeader.createCell(i + 1)
                     .setCellValue(STATISTIC_TEMPLATE_TIME.formatted(
-                            messageSource.getMessage(DESCRIPTION.get(Method.values()[i]), null, locale),
-                            messageSource.getMessage("statistic.response_time", null, locale),
-                            messageSource.getMessage("statistic.secs", null, locale)
+                            getLocalizedMessage(DESCRIPTION.get(Method.values()[i]), locale),
+                            getLocalizedMessage("statistic.response_time", locale),
+                            getLocalizedMessage("statistic.secs", locale)
                     ));
         }
         for (int i = 0; i < Method.values().length; i++) {
             rowHeader.createCell(i + 4)
                     .setCellValue(STATISTIC_TEMPLATE_CODE.formatted(
-                            messageSource.getMessage(DESCRIPTION.get(Method.values()[i]), null, healthService.getLocale(chatId)),
-                            messageSource.getMessage("statistic.response_code", null, locale)
+                            getLocalizedMessage(DESCRIPTION.get(Method.values()[i]), locale),
+                            getLocalizedMessage("statistic.response_code", locale)
                     ));
         }
         var sites = healthService.getSites();
@@ -112,5 +116,9 @@ public class StatisticServiceImpl implements StatisticService {
                 .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
                 .map(Statistic::getResponseCode)
                 .findAny().orElse(0);
+    }
+
+    private String getLocalizedMessage(String code, Locale locale) {
+        return messageSource.getMessage(code, null, locale);
     }
 }

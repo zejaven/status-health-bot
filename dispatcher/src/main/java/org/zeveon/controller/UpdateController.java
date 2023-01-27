@@ -14,6 +14,8 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.data.Data;
 import org.zeveon.entity.Site;
 import org.zeveon.model.Command;
+import org.zeveon.model.Language;
+import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
 
@@ -23,8 +25,7 @@ import java.util.Optional;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
-import static org.apache.commons.lang3.StringUtils.EMPTY;
-import static org.apache.commons.lang3.StringUtils.LF;
+import static org.apache.commons.lang3.StringUtils.*;
 import static org.zeveon.util.StringUtil.COMMA;
 import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
 
@@ -45,6 +46,8 @@ public class UpdateController {
     private final HealthService healthService;
 
     private final StatisticService statisticService;
+
+    private final ChatSettingsService chatSettingsService;
 
     private HealthBot healthBot;
 
@@ -83,6 +86,7 @@ public class UpdateController {
             case Command.GET_SITES -> sendResponse(buildSitesResponse(chatId), chatId);
             case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
             case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+            case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
             default -> sendResponse(buildEmptyResponse(chatId), chatId);
         }
     }
@@ -97,9 +101,7 @@ public class UpdateController {
     private void sendResponse(Optional<InputFile> inputFile, Long chatId) {
         inputFile.ifPresentOrElse(
                 i -> sendResponse(i, chatId),
-                () -> sendResponse(messageSource.getMessage(
-                        "message.statistic_generation_failed", null, healthService.getLocale(chatId)
-                        ), chatId)
+                () -> sendResponse(getLocalizedMessage("message.statistic_generation_failed", chatId), chatId)
         );
     }
 
@@ -127,14 +129,14 @@ public class UpdateController {
     }
 
     private String buildEmptyResponse(Long chatId) {
-        return messageSource.getMessage("message.empty", null, healthService.getLocale(chatId));
+        return getLocalizedMessage("message.empty", chatId);
     }
 
     private String buildHelpResponse(Long chatId) {
         return Command.LIST.entrySet().stream()
-                .map(e -> HELP_TEMPLATE.formatted(e.getKey(), e.getValue()))
+                .map(e -> HELP_TEMPLATE.formatted(e.getKey(), getLocalizedMessage(e.getValue(), chatId)))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(messageSource.getMessage("message.empty_help", null, healthService.getLocale(chatId)));
+                .orElse(getLocalizedMessage("message.empty_help", chatId));
     }
 
     private String buildAddResponse(String args, Long chatId) {
@@ -145,7 +147,7 @@ public class UpdateController {
             healthService.saveSites(argsList);
             return buildSitesResponse(chatId);
         } else {
-            return messageSource.getMessage("message.nothing_to_add", null, healthService.getLocale(chatId));
+            return getLocalizedMessage("message.nothing_to_add", chatId);
         }
     }
 
@@ -154,7 +156,7 @@ public class UpdateController {
                 .sorted(comparing(Site::getId))
                 .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(messageSource.getMessage("message.empty_sites", null, healthService.getLocale(chatId)));
+                .orElse(getLocalizedMessage("message.empty_sites", chatId));
     }
 
     private String buildRemoveResponse(String args, Long chatId) {
@@ -165,11 +167,24 @@ public class UpdateController {
             healthService.removeSites(argsList);
             return buildSitesResponse(chatId);
         } else {
-            return messageSource.getMessage("message.nothing_to_remove", null, healthService.getLocale(chatId));
+            return getLocalizedMessage("message.nothing_to_remove", chatId);
         }
     }
 
     private Optional<InputFile> buildStatisticResponse(Long chatId) {
         return statisticService.generateStatistic(chatId);
+    }
+
+    private String buildChangeLanguageResponse(Long chatId, String language) {
+        if (stream(Language.values()).anyMatch(l -> l.name().equals(language))) {
+            chatSettingsService.changeLocale(chatId, language);
+            return getLocalizedMessage("message.change_language_success", chatId);
+        } else {
+            return getLocalizedMessage("message.no_such_language", chatId).concat(SPACE).concat(language);
+        }
+    }
+
+    private String getLocalizedMessage(String code, Long chatId) {
+        return messageSource.getMessage(code, null, chatSettingsService.getLocale(chatId));
     }
 }
