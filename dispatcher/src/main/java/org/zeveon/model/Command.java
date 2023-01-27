@@ -14,8 +14,10 @@ public class Command {
     public static final String STATISTIC = "/statistic";
 
     public static final Map<String, String> LIST = Map.of(
-            GET_SITES, "Получить список всех сохраненных сайтов",
-            REMOVE, "Удалить сайты по их идентификаторам. Пример: /remove 1,4,5",
-            STATISTIC, "Показать статистику запросов"
+            ADD, "command.add",
+            GET_SITES, "command.get",
+            REMOVE, "command.remove",
+            STATISTIC, "command.statistic",
+            CHANGE_LANGUAGE, "command.change_language"
     );
 }
