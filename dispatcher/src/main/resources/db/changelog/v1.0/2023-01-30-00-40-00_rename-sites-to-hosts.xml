@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2023-01-30-00-40-00_rename-sites-to-hosts" author="Stanislav Vafin">
+        <renameTable oldTableName="site" newTableName="host" schemaName="health"/>
+        <renameColumn tableName="statistic" oldColumnName="site_id" newColumnName="host_id" schemaName="health"/>
+        <renameSequence oldSequenceName="site_id_seq" newSequenceName="host_id_seq" schemaName="health"/>
+        <sql>
+            ALTER TABLE health.host RENAME CONSTRAINT site_pkey TO host_pkey;
+            ALTER TABLE health.host RENAME CONSTRAINT site_url_key TO host_url_key;
+            ALTER TABLE health.statistic RENAME CONSTRAINT statistic_site_fk TO statistic_host_fk;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE health.statistic RENAME CONSTRAINT statistic_host_fk TO statistic_site_fk;
+                ALTER TABLE health.host RENAME CONSTRAINT host_url_key TO site_url_key;
+                ALTER TABLE health.host RENAME CONSTRAINT host_pkey TO site_pkey;
+            </sql>
+            <renameSequence oldSequenceName="host_id_seq" newSequenceName="site_id_seq" schemaName="health"/>
+            <renameColumn tableName="statistic" oldColumnName="host_id" newColumnName="site_id" schemaName="health"/>
+            <renameTable oldTableName="host" newTableName="site" schemaName="health"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

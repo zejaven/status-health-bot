@@ -5,5 +5,5 @@ package org.zeveon.cache;
  */
 public class Cache {
 
-    public static final String SITES = "SITES";
+    public static final String HOSTS = "HOSTS";
 }

@@ -1,6 +1,6 @@
 package org.zeveon.service;
 
-import org.zeveon.entity.Site;
+import org.zeveon.entity.Host;
 import org.zeveon.model.BotInfo;
 
 /**
@@ -8,5 +8,5 @@ import org.zeveon.model.BotInfo;
  */
 public interface HealthCheckService {
 
-    void checkHealth(Site site, BotInfo botInfo);
+    void checkHealth(Host host, BotInfo botInfo);
 }

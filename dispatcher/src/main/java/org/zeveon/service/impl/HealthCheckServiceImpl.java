@@ -10,12 +10,12 @@ import org.glassfish.grizzly.http.util.Header;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.data.Data;
-import org.zeveon.entity.Site;
+import org.zeveon.entity.Host;
 import org.zeveon.entity.Statistic;
 import org.zeveon.entity.StatisticId;
 import org.zeveon.model.BotInfo;
 import org.zeveon.model.Method;
-import org.zeveon.repository.SiteRepository;
+import org.zeveon.repository.HostRepository;
 import org.zeveon.service.HealthCheckService;
 import org.zeveon.util.CurlRequest;
 
@@ -47,51 +47,51 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     public static final String HEALTH_TEMPLATE = "%s | %s";
     public static final String HTTP = "HTTP";
 
-    private final SiteRepository siteRepository;
+    private final HostRepository hostRepository;
 
     @Transactional(rollbackFor = Exception.class)
-    public void checkHealth(Site site, BotInfo botInfo) {
-        var durationsRequestCountPair = Data.getRequestCount().get(site);
+    public void checkHealth(Host host, BotInfo botInfo) {
+        var durationsRequestCountPair = Data.getRequestCount().get(host);
         var botUsername = botInfo.getBotUsername();
         var startTime = LocalDateTime.now();
         var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
         switch (botInfo.getHealthCheckMethod()) {
             case APACHE_HTTP_CLIENT -> saveStatistic(
-                    site,
+                    host,
                     APACHE_HTTP_CLIENT,
                     durationsRequestCountPair,
                     startTime,
-                    checkHealthApache(site, botUsername, connectionTimeout)
+                    checkHealthApache(host, botUsername, connectionTimeout)
             );
             case JAVA_HTTP_CLIENT -> saveStatistic(
-                    site,
+                    host,
                     JAVA_HTTP_CLIENT,
                     durationsRequestCountPair,
                     startTime,
-                    checkHealthJava(site, botUsername, connectionTimeout)
+                    checkHealthJava(host, botUsername, connectionTimeout)
             );
             case CURL_PROCESS -> saveStatistic(
-                    site,
+                    host,
                     CURL_PROCESS,
                     durationsRequestCountPair,
                     startTime,
-                    checkHealthCurl(site, botUsername, connectionTimeout)
+                    checkHealthCurl(host, botUsername, connectionTimeout)
             );
         }
-        siteRepository.save(site);
+        hostRepository.save(host);
     }
 
-    private int checkHealthApache(Site site, String botUsername, Integer connectionTimeout) {
+    private int checkHealthApache(Host host, String botUsername, Integer connectionTimeout) {
         try (var httpClient = HttpClientBuilder.create()
                 .setDefaultRequestConfig(RequestConfig.custom()
                         .setConnectTimeout(connectionTimeout * MILLIS_IN_SECOND)
                         .build())
                 .setUserAgent(botUsername)
                 .build()) {
-            var request = new HttpGet(site.getUrl());
+            var request = new HttpGet(host.getUrl());
             var response = httpClient.execute(request);
             int responseCode = response.getStatusLine().getStatusCode();
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -99,19 +99,19 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthJava(Site site, String botUsername, Integer connectionTimeout) {
+    private int checkHealthJava(Host host, String botUsername, Integer connectionTimeout) {
         var httpClient = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         var request = HttpRequest.newBuilder()
                 .header(Header.UserAgent.name(), botUsername)
-                .uri(URI.create(site.getUrl()))
+                .uri(URI.create(host.getUrl()))
                 .timeout(Duration.ofSeconds(connectionTimeout))
                 .GET().build();
         try {
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             int responseCode = response.statusCode();
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException | InterruptedException e) {
             log.error(e.getMessage());
@@ -119,10 +119,10 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         }
     }
 
-    private int checkHealthCurl(Site site, String botUsername, Integer connectionTimeout) {
+    private int checkHealthCurl(Host host, String botUsername, Integer connectionTimeout) {
         try {
             var process = Runtime.getRuntime()
-                    .exec(CurlRequest.builder(site.getUrl())
+                    .exec(CurlRequest.builder(host.getUrl())
                             .head()
                             .location()
                             .silent()
@@ -144,7 +144,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                     .map(r -> r.split(SPACE)[1])
                     .map(Integer::parseInt)
                     .orElse(0);
-            log.info(HEALTH_TEMPLATE.formatted(site.getUrl(), responseCode));
+            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -153,7 +153,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     }
 
     private void saveStatistic(
-            Site site,
+            Host host,
             Method method,
             Pair<List<Duration>, Integer> durationsRequestCountPair,
             LocalDateTime startTime,
@@ -165,7 +165,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         final var newCount = ++count;
         var statistic = Statistic.builder()
                 .id(StatisticId.builder()
-                        .site(site)
+                        .host(host)
                         .method(method)
                         .build())
                 .responseTime(durations.stream()
@@ -174,8 +174,8 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                         .orElse(Duration.ZERO))
                 .responseCode(responseCode)
                 .build();
-        site.getStatistic().removeIf(s -> s.equals(statistic));
-        site.getStatistic().add(statistic);
-        Data.getRequestCount().put(site, Pair.of(durations, newCount));
+        host.getStatistic().removeIf(s -> s.equals(statistic));
+        host.getStatistic().add(statistic);
+        Data.getRequestCount().put(host, Pair.of(durations, newCount));
     }
 }

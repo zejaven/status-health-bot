@@ -7,8 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.cache.Cache;
 import org.zeveon.data.Data;
-import org.zeveon.entity.Site;
-import org.zeveon.repository.SiteRepository;
+import org.zeveon.entity.Host;
+import org.zeveon.repository.HostRepository;
 import org.zeveon.service.HealthService;
 
 import java.util.List;
@@ -20,33 +20,33 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HealthServiceImpl implements HealthService {
 
-    private final SiteRepository siteRepository;
+    private final HostRepository hostRepository;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = Cache.SITES, allEntries = true)
-    public void saveSites(List<String> siteUrls) {
-        var currentSiteUrls = getSites().stream().map(Site::getUrl).toList();
-        var sites = siteUrls.stream()
-                .filter(s -> !currentSiteUrls.contains(s))
-                .map(s -> Site.builder().url(s).build())
+    @CacheEvict(value = Cache.HOSTS, allEntries = true)
+    public void saveHosts(List<String> hostUrls) {
+        var currentHostUrls = getHosts().stream().map(Host::getUrl).toList();
+        var hosts = hostUrls.stream()
+                .filter(s -> !currentHostUrls.contains(s))
+                .map(s -> Host.builder().url(s).build())
                 .toList();
-        siteRepository.saveAll(sites);
-        Data.addAll(sites);
+        hostRepository.saveAll(hosts);
+        Data.addAll(hosts);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(Cache.SITES)
-    public List<Site> getSites() {
-        return siteRepository.findAll();
+    @Cacheable(Cache.HOSTS)
+    public List<Host> getHosts() {
+        return hostRepository.findAll();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = Cache.SITES, allEntries = true)
-    public void removeSites(List<Long> sites) {
-        siteRepository.deleteAllById(sites);
-        Data.removeAllById(sites);
+    @CacheEvict(value = Cache.HOSTS, allEntries = true)
+    public void removeHosts(List<Long> hosts) {
+        hostRepository.deleteAllById(hosts);
+        Data.removeAllById(hosts);
     }
 }

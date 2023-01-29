@@ -19,8 +19,8 @@ import java.io.Serializable;
 public class StatisticId implements Serializable {
 
     @ManyToOne
-    @JoinColumn(name = "site_id")
-    private Site site;
+    @JoinColumn(name = "host_id")
+    private Host host;
 
     @Column(name = "method")
     @Enumerated(EnumType.STRING)

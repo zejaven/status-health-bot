@@ -25,7 +25,7 @@ public class HealthCheck {
     @Async
     @Scheduled(fixedRate = 1000)
     public void scheduleFixedRateTaskAsync() {
-        Data.getCurrentSite().ifPresent(s -> {
+        Data.getCurrentHost().ifPresent(s -> {
             if (s.getLock().tryLock()) {
                 try {
                     s.getLock().lock();

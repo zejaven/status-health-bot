@@ -18,8 +18,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@Table(name = "site", schema = "health")
-public class Site {
+@Table(name = "host", schema = "health")
+public class Host {
 
     @Id
     @Column(name = "id")
@@ -30,7 +30,7 @@ public class Site {
     @Column(name = "url")
     private String url;
 
-    @OneToMany(mappedBy = "id.site", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "id.host", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private Set<Statistic> statistic = new HashSet<>();
 

@@ -12,7 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.data.Data;
-import org.zeveon.entity.Site;
+import org.zeveon.entity.Host;
 import org.zeveon.model.Command;
 import org.zeveon.model.Language;
 import org.zeveon.service.ChatSettingsService;
@@ -39,7 +39,7 @@ public class UpdateController {
 
     public static final String HELP_TEMPLATE = "%s - %s";
     public static final String NEW_LINE_TEMPLATE = "%s\n%s";
-    public static final String SITE_LIST_TEMPLATE = "%s: %s";
+    public static final String HOST_LIST_TEMPLATE = "%s: %s";
 
     private final MessageSource messageSource;
 
@@ -53,7 +53,7 @@ public class UpdateController {
 
     public void registerBot(HealthBot healthBot) {
         this.healthBot = healthBot;
-        Data.initialize(healthService.getSites());
+        Data.initialize(healthService.getHosts());
         try {
             new TelegramBotsApi(DefaultBotSession.class).registerBot(healthBot);
         } catch (TelegramApiException e) {
@@ -83,7 +83,7 @@ public class UpdateController {
         switch (command) {
             case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
             case Command.ADD -> sendResponse(buildAddResponse(args, chatId), chatId);
-            case Command.GET_SITES -> sendResponse(buildSitesResponse(chatId), chatId);
+            case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
             case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
             case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
             case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
@@ -144,19 +144,19 @@ public class UpdateController {
                 ? stream(args.split(LF)).map(String::strip).toList()
                 : emptyList();
         if (!argsList.isEmpty()) {
-            healthService.saveSites(argsList);
-            return buildSitesResponse(chatId);
+            healthService.saveHosts(argsList);
+            return buildHostsResponse(chatId);
         } else {
             return getLocalizedMessage("message.nothing_to_add", chatId);
         }
     }
 
-    private String buildSitesResponse(Long chatId) {
-        return healthService.getSites().stream()
-                .sorted(comparing(Site::getId))
-                .map(s -> SITE_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
+    private String buildHostsResponse(Long chatId) {
+        return healthService.getHosts().stream()
+                .sorted(comparing(Host::getId))
+                .map(s -> HOST_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
-                .orElse(getLocalizedMessage("message.empty_sites", chatId));
+                .orElse(getLocalizedMessage("message.empty_hosts", chatId));
     }
 
     private String buildRemoveResponse(String args, Long chatId) {
@@ -164,8 +164,8 @@ public class UpdateController {
                 ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).toList()
                 : emptyList();
         if (!argsList.isEmpty()) {
-            healthService.removeSites(argsList);
-            return buildSitesResponse(chatId);
+            healthService.removeHosts(argsList);
+            return buildHostsResponse(chatId);
         } else {
             return getLocalizedMessage("message.nothing_to_remove", chatId);
         }

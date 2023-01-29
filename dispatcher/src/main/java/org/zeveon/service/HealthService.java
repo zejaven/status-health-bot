@@ -1,6 +1,6 @@
 package org.zeveon.service;
 
-import org.zeveon.entity.Site;
+import org.zeveon.entity.Host;
 
 import java.util.List;
 
@@ -9,9 +9,9 @@ import java.util.List;
  */
 public interface HealthService {
 
-    void saveSites(List<String> sites);
+    void saveHosts(List<String> hosts);
 
-    List<Site> getSites();
+    List<Host> getHosts();
 
-    void removeSites(List<Long> sites);
+    void removeHosts(List<Long> hosts);
 }

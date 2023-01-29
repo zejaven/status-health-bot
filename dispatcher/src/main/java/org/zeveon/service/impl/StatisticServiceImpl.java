@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.zeveon.cache.Cache;
-import org.zeveon.entity.Site;
+import org.zeveon.entity.Host;
 import org.zeveon.entity.Statistic;
 import org.zeveon.model.Method;
 import org.zeveon.service.ChatSettingsService;
@@ -53,7 +53,7 @@ public class StatisticServiceImpl implements StatisticService {
     private final ChatSettingsService chatSettingsService;
 
     @Override
-    @CacheEvict(value = Cache.SITES, allEntries = true)
+    @CacheEvict(value = Cache.HOSTS, allEntries = true)
     @Transactional(readOnly = true)
     public Optional<InputFile> generateStatistic(Long chatId) {
         try (var workbook = new XSSFWorkbook(); var outputStream = new ByteArrayOutputStream()) {
@@ -87,15 +87,15 @@ public class StatisticServiceImpl implements StatisticService {
                             getLocalizedMessage("statistic.response_code", locale)
                     ));
         }
-        var sites = healthService.getSites();
-        for (int i = 0; i < sites.size(); i++) {
+        var hosts = healthService.getHosts();
+        for (int i = 0; i < hosts.size(); i++) {
             var row = sheet.createRow(i + 1);
-            row.createCell(0).setCellValue(sites.get(i).getUrl());
+            row.createCell(0).setCellValue(hosts.get(i).getUrl());
             for (int j = 0; j < Method.values().length; j++) {
-                row.createCell(j + 1).setCellValue(getResponseTimeInSeconds(sites, i, Method.values()[j]));
+                row.createCell(j + 1).setCellValue(getResponseTimeInSeconds(hosts, i, Method.values()[j]));
             }
             for (int j = 0; j < Method.values().length; j++) {
-                row.createCell(j + 4).setCellValue(getResponseCode(sites, i, Method.values()[j]));
+                row.createCell(j + 4).setCellValue(getResponseCode(hosts, i, Method.values()[j]));
             }
         }
         for (int i = 0; i < 7; i++) {
@@ -103,16 +103,16 @@ public class StatisticServiceImpl implements StatisticService {
         }
     }
 
-    private Double getResponseTimeInSeconds(List<Site> sites, int i, Method apacheHttpClient) {
-        return sites.get(i).getStatistic().stream()
+    private Double getResponseTimeInSeconds(List<Host> hosts, int i, Method apacheHttpClient) {
+        return hosts.get(i).getStatistic().stream()
                 .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
                 .map(s -> s.getResponseTime().toNanos())
                 .map(n -> n / NANOS_IN_SECOND)
                 .findAny().orElse(Double.NaN);
     }
 
-    private Integer getResponseCode(List<Site> sites, int i, Method apacheHttpClient) {
-        return sites.get(i).getStatistic().stream()
+    private Integer getResponseCode(List<Host> hosts, int i, Method apacheHttpClient) {
+        return hosts.get(i).getStatistic().stream()
                 .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
                 .map(Statistic::getResponseCode)
                 .findAny().orElse(0);
