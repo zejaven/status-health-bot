@@ -3,15 +3,18 @@ package org.zeveon.service;
 import org.zeveon.entity.Host;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Stanislav Vafin
  */
 public interface HealthService {
 
-    void saveHosts(List<String> hosts);
+    void saveHosts(Set<String> hosts, Long chatId);
 
-    List<Host> getHosts();
+    List<Host> getAllHosts();
 
-    void removeHosts(List<Long> hosts);
+    Set<Host> getHosts(Long chatId);
+
+    void removeHosts(Set<Long> hostIds, Long chatId);
 }

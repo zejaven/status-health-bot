@@ -24,15 +24,19 @@ public class Host {
     @Id
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "url")
+    @Column(name = "url", unique = true, nullable = false)
+    @EqualsAndHashCode.Include
     private String url;
 
     @OneToMany(mappedBy = "id.host", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private Set<Statistic> statistic = new HashSet<>();
+
+    @ManyToMany(mappedBy = "hosts")
+    @Builder.Default
+    private Set<ChatSettings> chatSettings = new HashSet<>();
 
     @Transient
     @Builder.Default

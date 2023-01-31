@@ -10,4 +10,5 @@
     <include file="v1.0/2023-01-25-13-11-00_moving-statistic-into-separate-table.xml" relativeToChangelogFile="true"/>
     <include file="v1.0/2023-01-28-06-20-00_create-table-chat-settings.xml" relativeToChangelogFile="true"/>
     <include file="v1.0/2023-01-30-00-40-00_rename-sites-to-hosts.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/2023-02-01-01-14-00_creating-relation-between-chat-and-host.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

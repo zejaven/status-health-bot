@@ -9,9 +9,11 @@ import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.data.Data;
+import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
 import org.zeveon.model.Command;
 import org.zeveon.model.Language;
@@ -19,12 +21,15 @@ import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Arrays.stream;
-import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.Comparator.comparing;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toSet;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.StringUtils.*;
 import static org.zeveon.util.StringUtil.COMMA;
 import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
@@ -53,7 +58,7 @@ public class UpdateController {
 
     public void registerBot(HealthBot healthBot) {
         this.healthBot = healthBot;
-        Data.initialize(healthService.getHosts());
+        Data.initialize(healthService.getAllHosts());
         try {
             new TelegramBotsApi(DefaultBotSession.class).registerBot(healthBot);
         } catch (TelegramApiException e) {
@@ -77,17 +82,21 @@ public class UpdateController {
     private void processMessage(Update update) {
         var message = update.getMessage();
         var chatId = message.getChatId();
-        var text = message.getText();
-        var command = text.split(WHITESPACE_CHARACTER)[0];
-        var args = text.replace(command, EMPTY).strip();
-        switch (command) {
-            case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
-            case Command.ADD -> sendResponse(buildAddResponse(args, chatId), chatId);
-            case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
-            case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
-            case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
-            case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
-            default -> sendResponse(buildEmptyResponse(chatId), chatId);
+        if (isTrue(message.getGroupchatCreated())) {
+            sendResponse(buildChatCreatedResponse(chatId, message.getFrom()), chatId);
+        } else {
+            var text = message.getText();
+            var command = text.split(WHITESPACE_CHARACTER)[0];
+            var args = text.replace(command, EMPTY).strip();
+            switch (command) {
+                case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
+                case Command.ADD -> sendResponse(buildAddResponse(args, chatId), chatId);
+                case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
+                case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
+                case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+                case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
+                default -> sendResponse(buildEmptyResponse(chatId), chatId);
+            }
         }
     }
 
@@ -140,11 +149,11 @@ public class UpdateController {
     }
 
     private String buildAddResponse(String args, Long chatId) {
-        List<String> argsList = !args.isEmpty()
-                ? stream(args.split(LF)).map(String::strip).toList()
-                : emptyList();
-        if (!argsList.isEmpty()) {
-            healthService.saveHosts(argsList);
+        Set<String> argsSet = !args.isEmpty()
+                ? stream(args.split(LF)).map(String::strip).collect(toSet())
+                : emptySet();
+        if (!argsSet.isEmpty()) {
+            healthService.saveHosts(argsSet, chatId);
             return buildHostsResponse(chatId);
         } else {
             return getLocalizedMessage("message.nothing_to_add", chatId);
@@ -152,19 +161,19 @@ public class UpdateController {
     }
 
     private String buildHostsResponse(Long chatId) {
-        return healthService.getHosts().stream()
+        return healthService.getHosts(chatId).stream()
                 .sorted(comparing(Host::getId))
-                .map(s -> HOST_LIST_TEMPLATE.formatted(s.getId(), s.getUrl()))
+                .map(h -> HOST_LIST_TEMPLATE.formatted(h.getId(), h.getUrl()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(getLocalizedMessage("message.empty_hosts", chatId));
     }
 
     private String buildRemoveResponse(String args, Long chatId) {
-        List<Long> argsList = !args.isEmpty()
-                ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).toList()
-                : emptyList();
-        if (!argsList.isEmpty()) {
-            healthService.removeHosts(argsList);
+        Set<Long> argsSet = !args.isEmpty()
+                ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).collect(toSet())
+                : emptySet();
+        if (!argsSet.isEmpty()) {
+            healthService.removeHosts(argsSet, chatId);
             return buildHostsResponse(chatId);
         } else {
             return getLocalizedMessage("message.nothing_to_remove", chatId);
@@ -182,6 +191,23 @@ public class UpdateController {
         } else {
             return getLocalizedMessage("message.no_such_language", chatId).concat(SPACE).concat(language);
         }
+    }
+
+    private String buildChatCreatedResponse(Long chatId, User user) {
+        var language = ofNullable(user.getLanguageCode())
+                .map(String::toUpperCase)
+                .orElse(ChatSettings.builder().build().getLocale());
+        if (stream(Language.values()).map(Language::name).anyMatch(l -> l.equals(language))) {
+            chatSettingsService.save(ChatSettings.builder()
+                    .chatId(chatId)
+                    .locale(language)
+                    .build());
+        } else {
+            chatSettingsService.save(chatId);
+        }
+        return NEW_LINE_TEMPLATE.formatted(
+                getLocalizedMessage("message.new_chat", chatId),
+                buildHelpResponse(chatId));
     }
 
     private String getLocalizedMessage(String code, Long chatId) {

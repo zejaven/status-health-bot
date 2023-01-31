@@ -19,7 +19,6 @@ import org.zeveon.service.StatisticService;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +52,7 @@ public class StatisticServiceImpl implements StatisticService {
     private final ChatSettingsService chatSettingsService;
 
     @Override
-    @CacheEvict(value = Cache.HOSTS, allEntries = true)
+    @CacheEvict(key = "#chatId", value = Cache.HOSTS, beforeInvocation = true)
     @Transactional(readOnly = true)
     public Optional<InputFile> generateStatistic(Long chatId) {
         try (var workbook = new XSSFWorkbook(); var outputStream = new ByteArrayOutputStream()) {
@@ -87,15 +86,17 @@ public class StatisticServiceImpl implements StatisticService {
                             getLocalizedMessage("statistic.response_code", locale)
                     ));
         }
-        var hosts = healthService.getHosts();
+        var hosts = healthService.getHosts(chatId);
+        var iterator = hosts.iterator();
         for (int i = 0; i < hosts.size(); i++) {
+            var host = iterator.next();
             var row = sheet.createRow(i + 1);
-            row.createCell(0).setCellValue(hosts.get(i).getUrl());
+            row.createCell(0).setCellValue(host.getUrl());
             for (int j = 0; j < Method.values().length; j++) {
-                row.createCell(j + 1).setCellValue(getResponseTimeInSeconds(hosts, i, Method.values()[j]));
+                row.createCell(j + 1).setCellValue(getResponseTimeInSeconds(host, Method.values()[j]));
             }
             for (int j = 0; j < Method.values().length; j++) {
-                row.createCell(j + 4).setCellValue(getResponseCode(hosts, i, Method.values()[j]));
+                row.createCell(j + 4).setCellValue(getResponseCode(host, Method.values()[j]));
             }
         }
         for (int i = 0; i < 7; i++) {
@@ -103,16 +104,16 @@ public class StatisticServiceImpl implements StatisticService {
         }
     }
 
-    private Double getResponseTimeInSeconds(List<Host> hosts, int i, Method apacheHttpClient) {
-        return hosts.get(i).getStatistic().stream()
+    private Double getResponseTimeInSeconds(Host host, Method apacheHttpClient) {
+        return host.getStatistic().stream()
                 .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
                 .map(s -> s.getResponseTime().toNanos())
                 .map(n -> n / NANOS_IN_SECOND)
                 .findAny().orElse(Double.NaN);
     }
 
-    private Integer getResponseCode(List<Host> hosts, int i, Method apacheHttpClient) {
-        return hosts.get(i).getStatistic().stream()
+    private Integer getResponseCode(Host host, Method apacheHttpClient) {
+        return host.getStatistic().stream()
                 .filter(s -> s.getId().getMethod().equals(apacheHttpClient))
                 .map(Statistic::getResponseCode)
                 .findAny().orElse(0);

@@ -1,10 +1,10 @@
 package org.zeveon.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author Stanislav Vafin
@@ -24,6 +24,16 @@ public class ChatSettings {
     @Column(name = "chat_id")
     private Long chatId;
 
-    @Column(name = "locale")
-    private String locale;
+    @Column(name = "locale", nullable = false)
+    @Builder.Default
+    private String locale = "EN";
+
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(name = "chat_host",
+            joinColumns = @JoinColumn(name = "chat_id"),
+            inverseJoinColumns = @JoinColumn(name = "host_id"),
+            schema = "health"
+    )
+    @Builder.Default
+    private Set<Host> hosts = new HashSet<>();
 }

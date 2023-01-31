@@ -4,10 +4,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.zeveon.entity.Host;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Optional.empty;
@@ -35,8 +32,8 @@ public class Data {
         newElements.forEach(e -> requestCount.put(e, Pair.of(new ArrayList<>(), 0)));
     }
 
-    public static synchronized void removeAllById(List<Long> elementsToRemove) {
-        hosts.removeIf(s -> elementsToRemove.contains(s.getId()));
+    public static synchronized void removeAllById(Set<Long> elementsToRemove) {
+        hosts.removeIf(h -> elementsToRemove.contains(h.getId()));
         requestCount.entrySet().removeIf(e -> elementsToRemove.contains(e.getKey().getId()));
     }
 

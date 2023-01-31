@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2023-02-01-01-14-00_creating-relation-between-chat-and-host" author="Stanislav Vafin">
+        <createTable tableName="chat_host" schemaName="health">
+            <column name="chat_id" type="bigint">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="chat_host_pkey"
+                             foreignKeyName="chat_host_chat_fk" referencedTableSchemaName="health"
+                             referencedTableName="chat_settings" referencedColumnNames="chat_id"/>
+            </column>
+            <column name="host_id" type="bigint">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="chat_host_pkey"
+                             foreignKeyName="chat_host_host_fk" referencedTableSchemaName="health"
+                             referencedTableName="host" referencedColumnNames="id"/>
+            </column>
+        </createTable>
+        <sql>
+            INSERT INTO health.chat_host
+            WITH chat_settings AS (
+                SELECT chat_id FROM health.chat_settings LIMIT 1
+            ) SELECT chat_id, id as host_id FROM health.host, chat_settings;
+        </sql>
+        <rollback>
+            <dropTable tableName="chat_host" schemaName="health"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

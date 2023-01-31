@@ -1,7 +1,6 @@
 package org.zeveon.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.entity.ChatSettings;
@@ -9,6 +8,7 @@ import org.zeveon.repository.ChatSettingsRepository;
 import org.zeveon.service.ChatSettingsService;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * @author Stanislav Vafin
@@ -19,30 +19,44 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     private final ChatSettingsRepository chatSettingsRepository;
 
-    @Value("${chat.default-locale}")
-    private String defaultLocale;
-
     @Override
     public Locale getLocale(Long chatId) {
-        return Locale.forLanguageTag(getChatSettings(chatId).getLocale());
+        return getChatSettings(chatId)
+                .map(ChatSettings::getLocale)
+                .map(Locale::forLanguageTag)
+                .orElse(Locale.forLanguageTag(ChatSettings.builder().build().getLocale()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChatSettings getChatSettings(Long chatId) {
-        return chatSettingsRepository.findById(chatId)
-                .orElse(ChatSettings.builder()
-                        .chatId(chatId)
-                        .locale(defaultLocale)
-                        .build());
+    public Optional<ChatSettings> getChatSettings(Long chatId) {
+        return chatSettingsRepository.findById(chatId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changeLocale(Long chatId, String locale) {
-        chatSettingsRepository.save(ChatSettings.builder()
+        chatSettingsRepository.findById(chatId)
+                .ifPresentOrElse(
+                        c -> c.setLocale(locale),
+                        () -> save(ChatSettings.builder()
+                                .chatId(chatId)
+                                .locale(locale)
+                                .build())
+                );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ChatSettings save(Long chatId) {
+        return save(ChatSettings.builder()
                 .chatId(chatId)
-                .locale(locale)
                 .build());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ChatSettings save(ChatSettings chatSettings) {
+        return chatSettingsRepository.save(chatSettings);
     }
 }
