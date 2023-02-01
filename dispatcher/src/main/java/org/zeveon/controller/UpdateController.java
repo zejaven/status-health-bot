@@ -34,7 +34,8 @@ import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
-import static org.apache.commons.lang3.StringUtils.*;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.LF;
 import static org.zeveon.util.StringUtil.COMMA;
 import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
 
@@ -46,10 +47,8 @@ import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
 @RequiredArgsConstructor
 public class UpdateController {
 
-    private static final String HELP_TEMPLATE = "%s - %s";
     private static final String NEW_LINE_TEMPLATE = "%s\n%s";
     private static final String HOST_LIST_TEMPLATE = "%s: %s";
-    private static final String HOST_STATUS_CHANGED_TEMPLATE = "";
 
     private final MessageSource messageSource;
 
@@ -159,7 +158,7 @@ public class UpdateController {
 
     private String buildHelpResponse(Long chatId) {
         return Command.LIST.entrySet().stream()
-                .map(e -> HELP_TEMPLATE.formatted(e.getKey(), getLocalizedMessage(e.getValue(), chatId)))
+                .map(e -> getLocalizedMessage(e.getValue(), chatId).formatted(e.getKey()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(getLocalizedMessage("message.empty_help", chatId));
     }
@@ -179,7 +178,7 @@ public class UpdateController {
     private String buildHostsResponse(Long chatId) {
         return healthService.getHosts(chatId).stream()
                 .sorted(comparing(Host::getId))
-                .map(h -> HOST_LIST_TEMPLATE.formatted(h.getId(), h.getUrl()))
+                .map(h -> HOST_LIST_TEMPLATE.formatted(h.getId(), h.getUrl().replace('.', '․')))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(getLocalizedMessage("message.empty_hosts", chatId));
     }
@@ -205,7 +204,7 @@ public class UpdateController {
             chatSettingsService.changeLocale(chatId, language);
             return getLocalizedMessage("message.change_language_success", chatId);
         } else {
-            return getLocalizedMessage("message.no_such_language", chatId).concat(SPACE).concat(language);
+            return getLocalizedMessage("message.no_such_language", chatId).formatted(language);
         }
     }
 
@@ -226,24 +225,23 @@ public class UpdateController {
         } else {
             chatSettingsService.save(chatId);
         }
-        return NEW_LINE_TEMPLATE.formatted(
-                getLocalizedMessage("message.new_chat", chatId),
-                buildHelpResponse(chatId));
+        return getLocalizedMessage("message.new_chat", chatId).formatted(buildHelpResponse(chatId));
     }
 
     private String buildStatusCodeChangedResponse(Long chatId, Host host, HealthInfo healthInfo) {
+        var responseUrl = host.getUrl().replace('.', '․');
         int responseCode = healthInfo.getResponseCode();
         if (!healthInfo.isStatisticExists()) {
             return responseCode == 0
-                    ? getLocalizedMessage("message.host_just_added_not_reachable", chatId).formatted(host.getUrl())
-                    : getLocalizedMessage("message.host_just_added", chatId).formatted(host.getUrl(), responseCode);
+                    ? getLocalizedMessage("message.host_just_added_not_reachable", chatId).formatted(responseUrl)
+                    : getLocalizedMessage("message.host_just_added", chatId).formatted(responseUrl, responseCode);
         }
         if (responseCode == 0) {
-            return getLocalizedMessage("message.host_not_reachable", chatId).formatted(host.getUrl());
+            return getLocalizedMessage("message.host_not_reachable", chatId).formatted(responseUrl);
         }
         return HttpStatus.valueOf(responseCode).is2xxSuccessful()
-                ? getLocalizedMessage("message.host_restored", chatId).formatted(host.getUrl(), responseCode)
-                : getLocalizedMessage("message.host_down", chatId).formatted(host.getUrl(), responseCode);
+                ? getLocalizedMessage("message.host_restored", chatId).formatted(responseUrl, responseCode)
+                : getLocalizedMessage("message.host_down", chatId).formatted(responseUrl, responseCode);
     }
 
     private String getLocalizedMessage(String code, Long chatId) {
