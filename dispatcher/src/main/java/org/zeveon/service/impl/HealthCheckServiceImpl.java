@@ -14,6 +14,7 @@ import org.zeveon.entity.Host;
 import org.zeveon.entity.Statistic;
 import org.zeveon.entity.StatisticId;
 import org.zeveon.model.BotInfo;
+import org.zeveon.model.HealthInfo;
 import org.zeveon.model.Method;
 import org.zeveon.repository.HostRepository;
 import org.zeveon.service.HealthCheckService;
@@ -29,6 +30,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.LF;
@@ -50,35 +52,74 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     private final HostRepository hostRepository;
 
     @Transactional(rollbackFor = Exception.class)
-    public void checkHealth(Host host, BotInfo botInfo) {
+    public HealthInfo checkHealth(Long hostId, BotInfo botInfo) {
+        var host = hostRepository.findById(hostId)
+                .orElseThrow(() -> new RuntimeException("This host already removed"));
         var durationsRequestCountPair = Data.getRequestCount().get(host);
         var botUsername = botInfo.getBotUsername();
         var startTime = LocalDateTime.now();
         var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
+        var responseCode = 0;
+        var statisticExists = true;
+        var responseCodeChanged = false;
         switch (botInfo.getHealthCheckMethod()) {
-            case APACHE_HTTP_CLIENT -> saveStatistic(
-                    host,
-                    APACHE_HTTP_CLIENT,
-                    durationsRequestCountPair,
-                    startTime,
-                    checkHealthApache(host, botUsername, connectionTimeout)
-            );
-            case JAVA_HTTP_CLIENT -> saveStatistic(
-                    host,
-                    JAVA_HTTP_CLIENT,
-                    durationsRequestCountPair,
-                    startTime,
-                    checkHealthJava(host, botUsername, connectionTimeout)
-            );
-            case CURL_PROCESS -> saveStatistic(
-                    host,
-                    CURL_PROCESS,
-                    durationsRequestCountPair,
-                    startTime,
-                    checkHealthCurl(host, botUsername, connectionTimeout)
-            );
+            case APACHE_HTTP_CLIENT -> {
+                responseCode = checkHealthApache(host, botUsername, connectionTimeout);
+                var statistic = findHostStatisticByMethod(host, APACHE_HTTP_CLIENT);
+                statisticExists = statistic.isPresent();
+                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                saveStatistic(
+                        host,
+                        APACHE_HTTP_CLIENT,
+                        durationsRequestCountPair,
+                        startTime,
+                        responseCode
+                );
+            }
+            case JAVA_HTTP_CLIENT -> {
+                responseCode = checkHealthJava(host, botUsername, connectionTimeout);
+                var statistic = findHostStatisticByMethod(host, JAVA_HTTP_CLIENT);
+                statisticExists = statistic.isPresent();
+                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                saveStatistic(
+                        host,
+                        JAVA_HTTP_CLIENT,
+                        durationsRequestCountPair,
+                        startTime,
+                        responseCode
+                );
+            }
+            case CURL_PROCESS -> {
+                responseCode = checkHealthCurl(host, botUsername, connectionTimeout);
+                var statistic = findHostStatisticByMethod(host, CURL_PROCESS);
+                statisticExists = statistic.isPresent();
+                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                saveStatistic(
+                        host,
+                        CURL_PROCESS,
+                        durationsRequestCountPair,
+                        startTime,
+                        responseCode
+                );
+            }
         }
-        hostRepository.save(host);
+        return HealthInfo.builder()
+                .statisticExists(statisticExists)
+                .responseCodeChanged(responseCodeChanged)
+                .responseCode(responseCode)
+                .build();
+    }
+
+    private boolean checkResponseCodeChanged(Optional<Statistic> statistic, int currentResponseCode) {
+        return statistic
+                .map(s -> s.getResponseCode() != currentResponseCode)
+                .orElse(true);
+    }
+
+    private Optional<Statistic> findHostStatisticByMethod(Host host, Method method) {
+        return host.getStatistic().stream()
+                .filter(s -> s.getId().getMethod().equals(method))
+                .findAny();
     }
 
     private int checkHealthApache(Host host, String botUsername, Integer connectionTimeout) {
@@ -163,19 +204,41 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         durations.add(Duration.between(startTime, LocalDateTime.now()));
         var count = durationsRequestCountPair.getRight();
         final var newCount = ++count;
-        var statistic = Statistic.builder()
-                .id(StatisticId.builder()
-                        .host(host)
-                        .method(method)
-                        .build())
-                .responseTime(durations.stream()
-                        .reduce(Duration::plus)
-                        .map(r -> r.dividedBy(newCount))
-                        .orElse(Duration.ZERO))
+        var statistic = host.getStatistic();
+        statistic.stream()
+                .filter(s -> s.getId().equals(buildStatisticId(host, method)))
+                .findAny()
+                .ifPresentOrElse(
+                        s -> updateFields(s, responseCode, durations, newCount),
+                        () -> statistic.add(buildStatistic(host, method, responseCode, durations, newCount))
+                );
+        Data.getRequestCount().put(host, Pair.of(durations, newCount));
+    }
+
+    private Statistic buildStatistic(Host host, Method method, int responseCode, List<Duration> durations, Integer newCount) {
+        return Statistic.builder()
+                .id(buildStatisticId(host, method))
+                .responseTime(calculateAverage(durations, newCount))
                 .responseCode(responseCode)
                 .build();
-        host.getStatistic().removeIf(s -> s.equals(statistic));
-        host.getStatistic().add(statistic);
-        Data.getRequestCount().put(host, Pair.of(durations, newCount));
+    }
+
+    private StatisticId buildStatisticId(Host host, Method method) {
+        return StatisticId.builder()
+                .host(host)
+                .method(method)
+                .build();
+    }
+
+    private void updateFields(Statistic s, int responseCode, List<Duration> durations, Integer newCount) {
+        s.setResponseTime(calculateAverage(durations, newCount));
+        s.setResponseCode(responseCode);
+    }
+
+    private Duration calculateAverage(List<Duration> durations, Integer newCount) {
+        return durations.stream()
+                .reduce(Duration::plus)
+                .map(r -> r.dividedBy(newCount))
+                .orElse(Duration.ZERO);
     }
 }

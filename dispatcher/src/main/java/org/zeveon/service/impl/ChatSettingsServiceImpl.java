@@ -4,11 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.entity.ChatSettings;
+import org.zeveon.entity.Host;
 import org.zeveon.repository.ChatSettingsRepository;
 import org.zeveon.service.ChatSettingsService;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+
+import static java.util.Collections.singleton;
 
 /**
  * @author Stanislav Vafin
@@ -20,6 +24,13 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
     private final ChatSettingsRepository chatSettingsRepository;
 
     @Override
+    @Transactional(readOnly = true)
+    public Set<ChatSettings> findChatSettingsByHost(Host host) {
+        return chatSettingsRepository.findChatSettingsByHostsIn(singleton(host));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Locale getLocale(Long chatId) {
         return getChatSettings(chatId)
                 .map(ChatSettings::getLocale)

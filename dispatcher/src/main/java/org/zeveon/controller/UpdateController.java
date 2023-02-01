@@ -3,6 +3,7 @@ package org.zeveon.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
@@ -18,6 +19,7 @@ import org.zeveon.data.Data;
 import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
 import org.zeveon.model.Command;
+import org.zeveon.model.HealthInfo;
 import org.zeveon.model.Language;
 import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
@@ -44,9 +46,10 @@ import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
 @RequiredArgsConstructor
 public class UpdateController {
 
-    public static final String HELP_TEMPLATE = "%s - %s";
-    public static final String NEW_LINE_TEMPLATE = "%s\n%s";
-    public static final String HOST_LIST_TEMPLATE = "%s: %s";
+    private static final String HELP_TEMPLATE = "%s - %s";
+    private static final String NEW_LINE_TEMPLATE = "%s\n%s";
+    private static final String HOST_LIST_TEMPLATE = "%s: %s";
+    private static final String HOST_STATUS_CHANGED_TEMPLATE = "";
 
     private final MessageSource messageSource;
 
@@ -79,6 +82,12 @@ public class UpdateController {
         } else {
             log.error("Received unsupported message type: " + update);
         }
+    }
+
+    public void reportStatusCodeChanged(Host host, HealthInfo healthInfo) {
+        chatSettingsService.findChatSettingsByHost(host)
+                .forEach(c -> sendResponse(
+                        buildStatusCodeChangedResponse(c.getChatId(), host, healthInfo), c.getChatId()));
     }
 
     private void processMessage(Update update) {
@@ -192,12 +201,16 @@ public class UpdateController {
     }
 
     private String buildChangeLanguageResponse(Long chatId, String language) {
-        if (stream(Language.values()).anyMatch(l -> l.name().equals(language))) {
+        if (languageSupported(language)) {
             chatSettingsService.changeLocale(chatId, language);
             return getLocalizedMessage("message.change_language_success", chatId);
         } else {
             return getLocalizedMessage("message.no_such_language", chatId).concat(SPACE).concat(language);
         }
+    }
+
+    private boolean languageSupported(String language) {
+        return stream(Language.values()).anyMatch(l -> l.name().equals(language));
     }
 
     private String buildChatCreatedResponse(Long chatId) {
@@ -216,6 +229,21 @@ public class UpdateController {
         return NEW_LINE_TEMPLATE.formatted(
                 getLocalizedMessage("message.new_chat", chatId),
                 buildHelpResponse(chatId));
+    }
+
+    private String buildStatusCodeChangedResponse(Long chatId, Host host, HealthInfo healthInfo) {
+        int responseCode = healthInfo.getResponseCode();
+        if (!healthInfo.isStatisticExists()) {
+            return responseCode == 0
+                    ? getLocalizedMessage("message.host_just_added_not_reachable", chatId).formatted(host.getUrl())
+                    : getLocalizedMessage("message.host_just_added", chatId).formatted(host.getUrl(), responseCode);
+        }
+        if (responseCode == 0) {
+            return getLocalizedMessage("message.host_not_reachable", chatId).formatted(host.getUrl());
+        }
+        return HttpStatus.valueOf(responseCode).is2xxSuccessful()
+                ? getLocalizedMessage("message.host_restored", chatId).formatted(host.getUrl(), responseCode)
+                : getLocalizedMessage("message.host_down", chatId).formatted(host.getUrl(), responseCode);
     }
 
     private String getLocalizedMessage(String code, Long chatId) {
