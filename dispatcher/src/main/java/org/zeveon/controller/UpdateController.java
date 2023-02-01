@@ -8,10 +8,12 @@ import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+import org.zeveon.component.HealthBot;
+import org.zeveon.context.UserContext;
 import org.zeveon.data.Data;
 import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
@@ -81,9 +83,10 @@ public class UpdateController {
 
     private void processMessage(Update update) {
         var message = update.getMessage();
+        setCurrentUser(message);
         var chatId = message.getChatId();
         if (isTrue(message.getGroupchatCreated())) {
-            sendResponse(buildChatCreatedResponse(chatId, message.getFrom()), chatId);
+            sendResponse(buildChatCreatedResponse(chatId), chatId);
         } else {
             var text = message.getText();
             var command = text.split(WHITESPACE_CHARACTER)[0];
@@ -98,6 +101,10 @@ public class UpdateController {
                 default -> sendResponse(buildEmptyResponse(chatId), chatId);
             }
         }
+    }
+
+    private void setCurrentUser(Message message) {
+        UserContext.setInstance(message.getFrom());
     }
 
     private void sendResponse(String message, Long chatId) {
@@ -193,7 +200,8 @@ public class UpdateController {
         }
     }
 
-    private String buildChatCreatedResponse(Long chatId, User user) {
+    private String buildChatCreatedResponse(Long chatId) {
+        var user = UserContext.getInstance().getUser();
         var language = ofNullable(user.getLanguageCode())
                 .map(String::toUpperCase)
                 .orElse(ChatSettings.builder().build().getLocale());

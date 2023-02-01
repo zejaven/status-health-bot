@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.zeveon.controller.HealthBot;
+import org.zeveon.component.HealthBot;
 import org.zeveon.data.Data;
 import org.zeveon.service.HealthCheckService;
 

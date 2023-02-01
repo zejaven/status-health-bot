@@ -22,7 +22,7 @@ public class StatisticId implements Serializable {
     @JoinColumn(name = "host_id")
     private Host host;
 
-    @Column(name = "method")
     @Enumerated(EnumType.STRING)
+    @Column(name = "method")
     private Method method;
 }

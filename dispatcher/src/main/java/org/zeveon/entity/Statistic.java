@@ -1,12 +1,18 @@
 package org.zeveon.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.TimeZoneStorage;
+import org.hibernate.annotations.TimeZoneStorageType;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * @author Stanislav Vafin
@@ -17,11 +23,12 @@ import java.time.Duration;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "statistic", schema = "health")
 public class Statistic {
 
-    @EmbeddedId
     @EqualsAndHashCode.Include
+    @EmbeddedId
     private StatisticId id;
 
     @Column(name = "response_time")
@@ -29,4 +36,14 @@ public class Statistic {
 
     @Column(name = "response_code")
     private Integer responseCode;
+
+    @CreatedDate
+    @TimeZoneStorage(TimeZoneStorageType.NATIVE)
+    @Column(name = "created_date", nullable = false, updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
+    private ZonedDateTime createdDate;
+
+    @LastModifiedDate
+    @TimeZoneStorage(TimeZoneStorageType.NATIVE)
+    @Column(name = "modified_date", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private ZonedDateTime modifiedDate;
 }

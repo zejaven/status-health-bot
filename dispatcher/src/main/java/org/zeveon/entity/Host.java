@@ -26,19 +26,19 @@ public class Host {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "url", unique = true, nullable = false)
     @EqualsAndHashCode.Include
+    @Column(name = "url", unique = true, nullable = false)
     private String url;
 
-    @OneToMany(mappedBy = "id.host", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
+    @OneToMany(mappedBy = "id.host", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private Set<Statistic> statistic = new HashSet<>();
 
-    @ManyToMany(mappedBy = "hosts")
     @Builder.Default
+    @ManyToMany(mappedBy = "hosts")
     private Set<ChatSettings> chatSettings = new HashSet<>();
 
-    @Transient
     @Builder.Default
+    @Transient
     private Lock lock = new ReentrantLock();
 }

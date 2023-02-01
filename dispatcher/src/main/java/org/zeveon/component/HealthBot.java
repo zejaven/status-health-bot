@@ -1,4 +1,4 @@
-package org.zeveon.controller;
+package org.zeveon.component;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EnumType;
@@ -10,6 +10,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.zeveon.controller.UpdateController;
 import org.zeveon.model.BotInfo;
 import org.zeveon.model.Method;
 
