@@ -77,11 +77,27 @@ public class HealthServiceImpl implements HealthService {
                 .orElseGet(() -> chatSettingsService.save(chatId));
         var chatHosts = chatSettings.getHosts();
         var filteredHostIds = chatHosts.stream()
-                .filter(host -> host.getChatSettings().size() == 1)
+                .filter(h -> h.getChatSettings().size() == 1)
                 .map(Host::getId)
                 .filter(hostIds::contains)
                 .collect(toSet());
         chatHosts.removeIf(h -> hostIds.contains(h.getId()));
+        hostRepository.deleteAllById(filteredHostIds);
+        Data.removeAllById(filteredHostIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(key = "#chatId", value = Cache.HOSTS)
+    public void removeAllHosts(Long chatId) {
+        var chatSettings = chatSettingsService.getChatSettings(chatId)
+                .orElseGet(() -> chatSettingsService.save(chatId));
+        var chatHosts = chatSettings.getHosts();
+        var filteredHostIds = chatHosts.stream()
+                .filter(h -> h.getChatSettings().size() == 1)
+                .map(Host::getId)
+                .collect(toSet());
+        chatHosts.clear();
         hostRepository.deleteAllById(filteredHostIds);
         Data.removeAllById(filteredHostIds);
     }

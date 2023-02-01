@@ -101,11 +101,12 @@ public class UpdateController {
             var args = text.replace(command, EMPTY).strip();
             switch (command) {
                 case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
-                case Command.ADD -> sendResponse(buildAddResponse(args, chatId), chatId);
+                case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
                 case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
-                case Command.REMOVE -> sendResponse(buildRemoveResponse(args, chatId), chatId);
+                case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
                 case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
                 case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
+                case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
                 default -> sendResponse(buildEmptyResponse(chatId), chatId);
             }
         }
@@ -163,7 +164,7 @@ public class UpdateController {
                 .orElse(getLocalizedMessage("message.empty_help", chatId));
     }
 
-    private String buildAddResponse(String args, Long chatId) {
+    private String buildAddResponse(Long chatId, String args) {
         Set<String> argsSet = !args.isEmpty()
                 ? stream(args.split(LF)).map(String::strip).collect(toSet())
                 : emptySet();
@@ -183,7 +184,7 @@ public class UpdateController {
                 .orElse(getLocalizedMessage("message.empty_hosts", chatId));
     }
 
-    private String buildRemoveResponse(String args, Long chatId) {
+    private String buildRemoveResponse(Long chatId, String args) {
         Set<Long> argsSet = !args.isEmpty()
                 ? stream(args.split(COMMA)).map(String::strip).map(Long::parseLong).collect(toSet())
                 : emptySet();
@@ -242,6 +243,11 @@ public class UpdateController {
         return HttpStatus.valueOf(responseCode).is2xxSuccessful()
                 ? getLocalizedMessage("message.host_restored", chatId).formatted(responseUrl, responseCode)
                 : getLocalizedMessage("message.host_down", chatId).formatted(responseUrl, responseCode);
+    }
+
+    private String buildRemoveAllResponse(Long chatId) {
+        healthService.removeAllHosts(chatId);
+        return buildHostsResponse(chatId);
     }
 
     private String getLocalizedMessage(String code, Long chatId) {

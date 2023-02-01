@@ -17,4 +17,6 @@ public interface HealthService {
     Set<Host> getHosts(Long chatId);
 
     void removeHosts(Set<Long> hostIds, Long chatId);
+
+    void removeAllHosts(Long chatId);
 }

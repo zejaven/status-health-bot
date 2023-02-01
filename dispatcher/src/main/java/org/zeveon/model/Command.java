@@ -13,12 +13,14 @@ public class Command {
     public static final String REMOVE = "/remove";
     public static final String STATISTIC = "/statistic";
     public static final String CHANGE_LANGUAGE = "/change_language";
+    public static final String REMOVE_ALL = "/remove_all";
 
     public static final Map<String, String> LIST = Map.of(
             ADD, "command.add",
             GET_HOSTS, "command.get",
             REMOVE, "command.remove",
             STATISTIC, "command.statistic",
-            CHANGE_LANGUAGE, "command.change_language"
+            CHANGE_LANGUAGE, "command.change_language",
+            REMOVE_ALL, "command.remove_all"
     );
 }
