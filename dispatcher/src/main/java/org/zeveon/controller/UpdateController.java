@@ -21,6 +21,7 @@ import org.zeveon.entity.Host;
 import org.zeveon.model.Command;
 import org.zeveon.model.HealthInfo;
 import org.zeveon.model.Language;
+import org.zeveon.model.Method;
 import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
 import org.zeveon.service.StatisticService;
@@ -36,8 +37,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.LF;
-import static org.zeveon.util.StringUtil.COMMA;
-import static org.zeveon.util.StringUtil.WHITESPACE_CHARACTER;
+import static org.zeveon.util.StringUtil.*;
 
 /**
  * @author Stanislav Vafin
@@ -83,10 +83,12 @@ public class UpdateController {
         }
     }
 
-    public void reportStatusCodeChanged(Host host, HealthInfo healthInfo) {
-        chatSettingsService.findChatSettingsByHost(host)
+    public void reportStatusCodeChanged(Host host, Method method, HealthInfo healthInfo) {
+        chatSettingsService.findChatSettingsByHostAndMethod(host, method)
                 .forEach(c -> sendResponse(
-                        buildStatusCodeChangedResponse(c.getChatId(), host, healthInfo), c.getChatId()));
+                        buildStatusCodeChangedResponse(c.getChatId(), host, healthInfo),
+                        c.getChatId()
+                ));
     }
 
     private void processMessage(Update update) {
@@ -99,15 +101,18 @@ public class UpdateController {
             var text = message.getText();
             var command = text.split(WHITESPACE_CHARACTER)[0];
             var args = text.replace(command, EMPTY).strip();
-            switch (command) {
-                case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
-                case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
-                case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
-                case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
-                case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
-                case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
-                case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
-                default -> sendResponse(buildEmptyResponse(chatId), chatId);
+            if (command.startsWith(SLASH)) {
+                switch (command) {
+                    case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
+                    case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
+                    case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
+                    case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
+                    case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+                    case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
+                    case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
+                    case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
+                    default -> sendResponse(buildEmptyResponse(chatId), chatId);
+                }
             }
         }
     }
@@ -179,7 +184,7 @@ public class UpdateController {
     private String buildHostsResponse(Long chatId) {
         return healthService.getHosts(chatId).stream()
                 .sorted(comparing(Host::getId))
-                .map(h -> HOST_LIST_TEMPLATE.formatted(h.getId(), h.getUrl().replace('.', '․')))
+                .map(h -> HOST_LIST_TEMPLATE.formatted(h.getId(), h.getUrl().replace(DOT, INVISIBLE_DOT)))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(getLocalizedMessage("message.empty_hosts", chatId));
     }
@@ -230,7 +235,7 @@ public class UpdateController {
     }
 
     private String buildStatusCodeChangedResponse(Long chatId, Host host, HealthInfo healthInfo) {
-        var responseUrl = host.getUrl().replace('.', '․');
+        var responseUrl = host.getUrl().replace(DOT, INVISIBLE_DOT);
         int responseCode = healthInfo.getResponseCode();
         if (!healthInfo.isStatisticExists()) {
             return responseCode == 0
@@ -248,6 +253,19 @@ public class UpdateController {
     private String buildRemoveAllResponse(Long chatId) {
         healthService.removeAllHosts(chatId);
         return buildHostsResponse(chatId);
+    }
+
+    private String buildChangeMethodResponse(Long chatId, String method) {
+        if (methodSupported(method)) {
+            chatSettingsService.changeMethod(chatId, Method.valueOf(method));
+            return getLocalizedMessage("message.change_method_success", chatId);
+        } else {
+            return getLocalizedMessage("message.no_such_method", chatId).formatted(method);
+        }
+    }
+
+    private boolean methodSupported(String method) {
+        return stream(Method.values()).anyMatch(m -> m.name().equals(method));
     }
 
     private String getLocalizedMessage(String code, Long chatId) {

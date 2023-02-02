@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
+import org.zeveon.model.Method;
 import org.zeveon.repository.ChatSettingsRepository;
 import org.zeveon.service.ChatSettingsService;
 
@@ -25,8 +26,8 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     @Override
     @Transactional(readOnly = true)
-    public Set<ChatSettings> findChatSettingsByHost(Host host) {
-        return chatSettingsRepository.findChatSettingsByHostsIn(singleton(host));
+    public Set<ChatSettings> findChatSettingsByHostAndMethod(Host host, Method method) {
+        return chatSettingsRepository.findChatSettingsByHostsInAndMethod(singleton(host), method);
     }
 
     @Override
@@ -53,6 +54,19 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
                         () -> save(ChatSettings.builder()
                                 .chatId(chatId)
                                 .locale(locale)
+                                .build())
+                );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changeMethod(Long chatId, Method method) {
+        chatSettingsRepository.findById(chatId)
+                .ifPresentOrElse(
+                        c -> c.setMethod(method),
+                        () -> save(ChatSettings.builder()
+                                .chatId(chatId)
+                                .method(method)
                                 .build())
                 );
     }

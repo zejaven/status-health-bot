@@ -10,6 +10,7 @@ import org.glassfish.grizzly.http.util.Header;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zeveon.data.Data;
+import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
 import org.zeveon.entity.Statistic;
 import org.zeveon.entity.StatisticId;
@@ -31,11 +32,13 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
 import static org.zeveon.model.Method.*;
+import static org.zeveon.util.Functions.distinctByKey;
 
 /**
  * @author Stanislav Vafin
@@ -52,62 +55,65 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     private final HostRepository hostRepository;
 
     @Transactional(rollbackFor = Exception.class)
-    public HealthInfo checkHealth(Long hostId, BotInfo botInfo) {
+    public void checkHealth(Long hostId, BotInfo botInfo, BiConsumer<Method, HealthInfo> reportStatusMethod) {
         var host = hostRepository.findById(hostId)
                 .orElseThrow(() -> new RuntimeException("This host already removed"));
-        var durationsRequestCountPair = Data.getRequestCount().get(host);
-        var botUsername = botInfo.getBotUsername();
-        var startTime = LocalDateTime.now();
-        var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
-        var responseCode = 0;
-        var statisticExists = true;
-        var responseCodeChanged = false;
-        switch (botInfo.getHealthCheckMethod()) {
-            case APACHE_HTTP_CLIENT -> {
-                responseCode = checkHealthApache(host, botUsername, connectionTimeout);
-                var statistic = findHostStatisticByMethod(host, APACHE_HTTP_CLIENT);
-                statisticExists = statistic.isPresent();
-                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
-                saveStatistic(
-                        host,
-                        APACHE_HTTP_CLIENT,
-                        durationsRequestCountPair,
-                        startTime,
-                        responseCode
-                );
-            }
-            case JAVA_HTTP_CLIENT -> {
-                responseCode = checkHealthJava(host, botUsername, connectionTimeout);
-                var statistic = findHostStatisticByMethod(host, JAVA_HTTP_CLIENT);
-                statisticExists = statistic.isPresent();
-                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
-                saveStatistic(
-                        host,
-                        JAVA_HTTP_CLIENT,
-                        durationsRequestCountPair,
-                        startTime,
-                        responseCode
-                );
-            }
-            case CURL_PROCESS -> {
-                responseCode = checkHealthCurl(host, botUsername, connectionTimeout);
-                var statistic = findHostStatisticByMethod(host, CURL_PROCESS);
-                statisticExists = statistic.isPresent();
-                responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
-                saveStatistic(
-                        host,
-                        CURL_PROCESS,
-                        durationsRequestCountPair,
-                        startTime,
-                        responseCode
-                );
-            }
-        }
-        return HealthInfo.builder()
-                .statisticExists(statisticExists)
-                .responseCodeChanged(responseCodeChanged)
-                .responseCode(responseCode)
-                .build();
+        host.getChatSettings().stream()
+                .filter(distinctByKey(ChatSettings::getMethod))
+                .forEach(chatSettings -> {
+                    var method = chatSettings.getMethod();
+                    var durationsRequestCountPair = Data.getRequestCount().get(host);
+                    var botUsername = botInfo.getBotUsername();
+                    var startTime = LocalDateTime.now();
+                    var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
+                    var responseCode = 0;
+                    var statisticExists = true;
+                    var responseCodeChanged = false;
+                    switch (method) {
+                        case APACHE_HTTP_CLIENT -> {
+                            responseCode = checkHealthApache(host, botUsername, connectionTimeout);
+                            var statistic = findHostStatisticByMethod(host, APACHE_HTTP_CLIENT);
+                            statisticExists = statistic.isPresent();
+                            responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                            saveStatistic(
+                                    host,
+                                    APACHE_HTTP_CLIENT,
+                                    durationsRequestCountPair,
+                                    startTime,
+                                    responseCode
+                            );
+                        }
+                        case JAVA_HTTP_CLIENT -> {
+                            responseCode = checkHealthJava(host, botUsername, connectionTimeout);
+                            var statistic = findHostStatisticByMethod(host, JAVA_HTTP_CLIENT);
+                            statisticExists = statistic.isPresent();
+                            responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                            saveStatistic(
+                                    host,
+                                    JAVA_HTTP_CLIENT,
+                                    durationsRequestCountPair,
+                                    startTime,
+                                    responseCode
+                            );
+                        }
+                        case CURL_PROCESS -> {
+                            responseCode = checkHealthCurl(host, botUsername, connectionTimeout);
+                            var statistic = findHostStatisticByMethod(host, CURL_PROCESS);
+                            statisticExists = statistic.isPresent();
+                            responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
+                            saveStatistic(
+                                    host,
+                                    CURL_PROCESS,
+                                    durationsRequestCountPair,
+                                    startTime,
+                                    responseCode
+                            );
+                        }
+                    }
+                    if (responseCodeChanged || !statisticExists) {
+                        reportStatusMethod.accept(method, buildHealthInfo(responseCode, statisticExists, responseCodeChanged));
+                    }
+                });
     }
 
     private boolean checkResponseCodeChanged(Optional<Statistic> statistic, int currentResponseCode) {
@@ -240,5 +246,13 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .reduce(Duration::plus)
                 .map(r -> r.dividedBy(newCount))
                 .orElse(Duration.ZERO);
+    }
+
+    private HealthInfo buildHealthInfo(int responseCode, boolean statisticExists, boolean responseCodeChanged) {
+        return HealthInfo.builder()
+                .statisticExists(statisticExists)
+                .responseCodeChanged(responseCodeChanged)
+                .responseCode(responseCode)
+                .build();
     }
 }

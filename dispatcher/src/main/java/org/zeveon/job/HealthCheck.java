@@ -28,17 +28,18 @@ public class HealthCheck {
     @Async
     @Scheduled(fixedRate = 1000)
     public void scheduleFixedRateTaskAsync() {
-        Data.getCurrentHost().ifPresent(h -> {
-            if (h.getLock().tryLock()) {
+        Data.getCurrentHost().ifPresent(host -> {
+            if (host.getLock().tryLock()) {
                 try {
-                    h.getLock().lock();
-                    var healthInfo = healthCheckService.checkHealth(h.getId(), healthBot.getBotInfo());
-                    if (healthInfo.isResponseCodeChanged() || !healthInfo.isStatisticExists()) {
-                        updateController.reportStatusCodeChanged(h, healthInfo);
-                    }
+                    host.getLock().lock();
+                    healthCheckService.checkHealth(
+                            host.getId(),
+                            healthBot.getBotInfo(),
+                            (m, h) -> updateController.reportStatusCodeChanged(host, m, h)
+                    );
                 } finally {
-                    h.getLock().unlock();
-                    h.getLock().unlock();
+                    host.getLock().unlock();
+                    host.getLock().unlock();
                 }
             }
         });

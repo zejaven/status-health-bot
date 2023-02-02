@@ -10,7 +10,6 @@ import lombok.Data;
 @Builder
 public class BotInfo {
 
-    private Method healthCheckMethod;
     private String botUsername;
     private Integer healthCheckConnectionTimeout;
 }
