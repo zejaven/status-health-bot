@@ -26,7 +26,7 @@ public class HealthCheck {
     private final UpdateController updateController;
 
     @Async
-    @Scheduled(fixedRate = 1000)
+    @Scheduled(fixedRate = 60000)
     public void scheduleFixedRateTaskAsync() {
         Data.getCurrentHost().ifPresent(host -> {
             if (host.getLock().tryLock()) {
