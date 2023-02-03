@@ -13,9 +13,10 @@ public class Command {
     public static final String ADD = "/add";
     public static final String GET_HOSTS = "/get_hosts";
     public static final String REMOVE = "/remove";
-    public static final String STATISTIC = "/statistic";
-    public static final String CHANGE_LANGUAGE = "/change_language";
     public static final String REMOVE_ALL = "/remove_all";
+    public static final String STATISTIC = "/statistic";
+    public static final String SETTINGS = "/settings";
+    public static final String CHANGE_LANGUAGE = "/change_language";
     public static final String CHANGE_METHOD = "/change_method";
     public static final String CHANGE_RATE = "/change_rate";
     public static final String ADD_ADMIN = "/add_admin";
@@ -27,6 +28,7 @@ public class Command {
         put(REMOVE, "command.remove");
         put(REMOVE_ALL, "command.remove_all");
         put(STATISTIC, "command.statistic");
+        put(SETTINGS, "command.settings");
         put(CHANGE_LANGUAGE, "command.change_language");
         put(CHANGE_METHOD, "command.change_method");
         put(CHANGE_RATE, "command.change_rate");

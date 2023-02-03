@@ -30,7 +30,9 @@ import org.zeveon.service.PersonService;
 import org.zeveon.service.StatisticService;
 
 import java.time.Duration;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -113,9 +115,10 @@ public class UpdateController {
                     case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
                     case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
                     case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
-                    case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
-                    case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
                     case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
+                    case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+                    case Command.SETTINGS -> sendResponse(buildSettingsResponse(chatId), chatId);
+                    case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
                     case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
                     case Command.CHANGE_RATE -> sendResponse(buildChangeRateResponse(chatId, args), chatId);
                     case Command.ADD_ADMIN -> sendResponse(buildAddAdminResponse(chatId, args), chatId);
@@ -345,6 +348,30 @@ public class UpdateController {
         } else {
             return getLocalizedMessage("message.super_admin_access_denied", chatId);
         }
+    }
+
+    private String buildSettingsResponse(Long chatId) {
+        return chatSettingsService.getChatSettings(chatId)
+                .map(c -> buildSettingFields(chatId, c).stream()
+                        .reduce(NEW_LINE_TEMPLATE::formatted)
+                        .orElse(getLocalizedMessage("message.empty_settings", chatId))
+                ).orElse(getLocalizedMessage("message.empty_settings", chatId));
+    }
+
+    private List<String> buildSettingFields(Long chatId, ChatSettings settings) {
+        return List.of(
+                getLocalizedMessage("chat_settings.locale", chatId).formatted(settings.getLocale()),
+                getLocalizedMessage("chat_settings.method", chatId).formatted(settings.getMethod()),
+                getLocalizedMessage("chat_settings.check_rate", chatId).formatted(
+                        getDurationReadableFormat(settings.getCheckRate(), chatId)),
+                getLocalizedMessage("chat_settings.modified_date", chatId).formatted(
+                        ofNullable(settings.getModifiedDate())
+                                .map(d -> d.format(DateTimeFormatter.RFC_1123_DATE_TIME))
+                                .orElse(EMPTY)),
+                getLocalizedMessage("chat_settings.modified_by", chatId).formatted(
+                        ofNullable(settings.getModifiedBy())
+                                .orElse(EMPTY))
+        );
     }
 
     private boolean methodSupported(String method) {
