@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.component.HealthBot;
@@ -18,14 +19,18 @@ import org.zeveon.context.UserContext;
 import org.zeveon.data.Data;
 import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
+import org.zeveon.entity.Person;
 import org.zeveon.model.Command;
 import org.zeveon.model.HealthInfo;
 import org.zeveon.model.Language;
 import org.zeveon.model.Method;
 import org.zeveon.service.ChatSettingsService;
 import org.zeveon.service.HealthService;
+import org.zeveon.service.PersonService;
 import org.zeveon.service.StatisticService;
 
+import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
 
@@ -35,8 +40,7 @@ import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
-import static org.apache.commons.lang3.StringUtils.EMPTY;
-import static org.apache.commons.lang3.StringUtils.LF;
+import static org.apache.commons.lang3.StringUtils.*;
 import static org.zeveon.util.StringUtil.*;
 
 /**
@@ -57,6 +61,8 @@ public class UpdateController {
     private final StatisticService statisticService;
 
     private final ChatSettingsService chatSettingsService;
+
+    private final PersonService personService;
 
     private HealthBot healthBot;
 
@@ -100,8 +106,8 @@ public class UpdateController {
         } else {
             var text = message.getText();
             var command = text.split(WHITESPACE_CHARACTER)[0];
-            var args = text.replace(command, EMPTY).strip();
             if (command.startsWith(SLASH)) {
+                var args = text.replace(command, EMPTY).strip();
                 switch (command) {
                     case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
                     case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
@@ -111,6 +117,9 @@ public class UpdateController {
                     case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
                     case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
                     case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
+                    case Command.CHANGE_RATE -> sendResponse(buildChangeRateResponse(chatId, args), chatId);
+                    case Command.ADD_ADMIN -> sendResponse(buildAddAdminResponse(chatId, args), chatId);
+                    case Command.REMOVE_ADMIN -> sendResponse(buildRemoveAdminResponse(chatId, args), chatId);
                     default -> sendResponse(buildEmptyResponse(chatId), chatId);
                 }
             }
@@ -118,7 +127,17 @@ public class UpdateController {
     }
 
     private void setCurrentUser(Message message) {
-        UserContext.setInstance(message.getFrom());
+        var user = message.getFrom();
+        var person = personService.findByUserId(user.getId())
+                        .orElseGet(() -> personService.save(buildPerson(user)));
+        UserContext.setInstance(user, person.isAdmin(), person.isSuperAdmin());
+    }
+
+    private Person buildPerson(User user) {
+        return Person.builder()
+                .userId(user.getId())
+                .username(user.getUserName())
+                .build();
     }
 
     private void sendResponse(String message, Long chatId) {
@@ -163,7 +182,9 @@ public class UpdateController {
     }
 
     private String buildHelpResponse(Long chatId) {
+        var isSuperAdmin = UserContext.getInstance().isSuperAdmin();
         return Command.LIST.entrySet().stream()
+                .filter(c -> !Command.SUPER_ADMIN_COMMANDS.contains(c.getKey()) || isSuperAdmin)
                 .map(e -> getLocalizedMessage(e.getValue(), chatId).formatted(e.getKey()))
                 .reduce(NEW_LINE_TEMPLATE::formatted)
                 .orElse(getLocalizedMessage("message.empty_help", chatId));
@@ -207,7 +228,7 @@ public class UpdateController {
 
     private String buildChangeLanguageResponse(Long chatId, String language) {
         if (languageSupported(language)) {
-            chatSettingsService.changeLocale(chatId, language);
+            chatSettingsService.updateLocale(chatId, language);
             return getLocalizedMessage("message.change_language_success", chatId);
         } else {
             return getLocalizedMessage("message.no_such_language", chatId).formatted(language);
@@ -257,10 +278,72 @@ public class UpdateController {
 
     private String buildChangeMethodResponse(Long chatId, String method) {
         if (methodSupported(method)) {
-            chatSettingsService.changeMethod(chatId, Method.valueOf(method));
+            chatSettingsService.updateMethod(chatId, Method.valueOf(method));
             return getLocalizedMessage("message.change_method_success", chatId);
         } else {
             return getLocalizedMessage("message.no_such_method", chatId).formatted(method);
+        }
+    }
+
+    private String buildChangeRateResponse(Long chatId, String durationStr) {
+        var userContext = UserContext.getInstance();
+        try {
+            var duration = Duration.parse(durationStr);
+            if (userContext.isAdmin()) {
+                if (duration.toSeconds() >= 1) {
+                    chatSettingsService.updateCheckRate(chatId, duration);
+                    return getLocalizedMessage("message.change_rate_success", chatId)
+                            .formatted(getDurationReadableFormat(duration, chatId));
+                } else {
+                    return getLocalizedMessage("message.change_rate_less_than_second", chatId);
+                }
+            } else {
+                return getLocalizedMessage("message.change_rate_access_denied", chatId);
+            }
+        } catch (RuntimeException re) {
+            try {
+                var duration = Duration.ofMinutes(Long.parseLong(durationStr));
+                chatSettingsService.updateCheckRate(chatId, duration);
+                return getLocalizedMessage("message.change_rate_success", chatId)
+                        .formatted(getDurationReadableFormat(duration, chatId));
+            } catch (NumberFormatException nfe) {
+                return getLocalizedMessage("message.change_rate_wrong_format", chatId);
+            }
+        }
+    }
+
+    private String getDurationReadableFormat(Duration duration, Long chatId) {
+        return new LinkedHashMap<String, Number>() {{
+            put(getLocalizedMessage("duration.days", chatId), duration.toDaysPart());
+            put(getLocalizedMessage("duration.hours", chatId), duration.toHoursPart());
+            put(getLocalizedMessage("duration.minutes", chatId), duration.toMinutesPart());
+            put(getLocalizedMessage("duration.seconds", chatId), duration.toSecondsPart());
+        }}.entrySet().stream()
+                .filter(e -> e.getValue().longValue() > 0)
+                .map(e -> e.getKey().formatted(e.getValue()))
+                .reduce((a, b) -> a.concat(SPACE).concat(b))
+                .orElse(EMPTY);
+    }
+
+    private String buildAddAdminResponse(Long chatId, String username) {
+        var userContext = UserContext.getInstance();
+        if (userContext.isSuperAdmin()) {
+            return personService.updateAdminRights(username, true).isPresent()
+                    ? getLocalizedMessage("message.add_admin_success", chatId).formatted(username)
+                    : getLocalizedMessage("message.add_admin_failed", chatId).formatted(username);
+        } else {
+            return getLocalizedMessage("message.super_admin_access_denied", chatId);
+        }
+    }
+
+    private String buildRemoveAdminResponse(Long chatId, String username) {
+        var userContext = UserContext.getInstance();
+        if (userContext.isSuperAdmin()) {
+            return personService.updateAdminRights(username, false).isPresent()
+                    ? getLocalizedMessage("message.remove_admin_success", chatId).formatted(username)
+                    : getLocalizedMessage("message.remove_admin_failed", chatId).formatted(username);
+        } else {
+            return getLocalizedMessage("message.super_admin_access_denied", chatId);
         }
     }
 

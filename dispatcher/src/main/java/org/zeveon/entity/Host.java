@@ -5,8 +5,7 @@ import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 /**
  * @author Stanislav Vafin
@@ -40,5 +39,5 @@ public class Host {
 
     @Builder.Default
     @Transient
-    private Lock lock = new ReentrantLock();
+    private Semaphore lock = new Semaphore(1);
 }

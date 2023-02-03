@@ -9,6 +9,8 @@ import org.zeveon.model.Method;
 import org.zeveon.repository.ChatSettingsRepository;
 import org.zeveon.service.ChatSettingsService;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -23,6 +25,32 @@ import static java.util.Collections.singleton;
 public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     private final ChatSettingsRepository chatSettingsRepository;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ChatSettings save(Long chatId) {
+        return save(ChatSettings.builder()
+                .chatId(chatId)
+                .build());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ChatSettings save(ChatSettings chatSettings) {
+        return chatSettingsRepository.save(chatSettings);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatSettings> getAllChatSettings() {
+        return chatSettingsRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ChatSettings> getChatSettings(Long chatId) {
+        return chatSettingsRepository.findById(chatId);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -40,14 +68,8 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Optional<ChatSettings> getChatSettings(Long chatId) {
-        return chatSettingsRepository.findById(chatId);
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changeLocale(Long chatId, String locale) {
+    public void updateLocale(Long chatId, String locale) {
         chatSettingsRepository.findById(chatId)
                 .ifPresentOrElse(
                         c -> c.setLocale(locale),
@@ -60,7 +82,7 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void changeMethod(Long chatId, Method method) {
+    public void updateMethod(Long chatId, Method method) {
         chatSettingsRepository.findById(chatId)
                 .ifPresentOrElse(
                         c -> c.setMethod(method),
@@ -73,15 +95,14 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ChatSettings save(Long chatId) {
-        return save(ChatSettings.builder()
-                .chatId(chatId)
-                .build());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public ChatSettings save(ChatSettings chatSettings) {
-        return chatSettingsRepository.save(chatSettings);
+    public void updateCheckRate(Long chatId, Duration rate) {
+        chatSettingsRepository.findById(chatId)
+                .ifPresentOrElse(
+                        c -> c.setCheckRate(rate),
+                        () -> save(ChatSettings.builder()
+                                .chatId(chatId)
+                                .checkRate(rate)
+                                .build())
+                );
     }
 }

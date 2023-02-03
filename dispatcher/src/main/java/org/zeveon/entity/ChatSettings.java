@@ -11,6 +11,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.zeveon.model.Method;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,6 +43,10 @@ public class ChatSettings {
     @Enumerated(EnumType.STRING)
     @Column(name = "method", nullable = false, columnDefinition = "VARCHAR(255) DEFAULT 'APACHE_HTTP_CLIENT'")
     private Method method = Method.APACHE_HTTP_CLIENT;
+
+    @Builder.Default
+    @Column(name = "check_rate", nullable = false, columnDefinition = "NUMERIC(21) DEFAULT 600000000000")
+    private Duration checkRate = Duration.ofMinutes(10L);
 
     @Builder.Default
     @ManyToMany(cascade = CascadeType.ALL)

@@ -8,7 +8,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Optional.empty;
-import static java.util.Optional.of;
 
 /**
  * @author Stanislav Vafin
@@ -16,8 +15,6 @@ import static java.util.Optional.of;
 public class Data {
 
     private static List<Host> hosts;
-
-    private static volatile int currentIndex;
 
     private static Map<Host, Pair<List<Duration>, Integer>> requestCount;
 
@@ -37,9 +34,9 @@ public class Data {
         requestCount.entrySet().removeIf(e -> elementsToRemove.contains(e.getKey().getId()));
     }
 
-    public static synchronized Optional<Host> getCurrentHost() {
+    public static synchronized Optional<Host> getHostById(Long hostId) {
         return !hosts.isEmpty()
-                ? of(hosts.get(currentIndex < hosts.size() ? currentIndex++ : (currentIndex = 0)))
+                ? hosts.stream().filter(h -> h.getId().equals(hostId)).findAny()
                 : empty();
     }
 
