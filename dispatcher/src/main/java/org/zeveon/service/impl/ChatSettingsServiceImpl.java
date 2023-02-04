@@ -82,6 +82,19 @@ public class ChatSettingsServiceImpl implements ChatSettingsService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void updateZoneId(Long chatId, String zoneId) {
+        chatSettingsRepository.findById(chatId)
+                .ifPresentOrElse(
+                        c -> c.setZoneId(zoneId),
+                        () -> save(ChatSettings.builder()
+                                .chatId(chatId)
+                                .zoneId(zoneId)
+                                .build())
+                );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateMethod(Long chatId, Method method) {
         chatSettingsRepository.findById(chatId)
                 .ifPresentOrElse(

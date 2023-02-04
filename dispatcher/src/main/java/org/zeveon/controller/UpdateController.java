@@ -29,7 +29,10 @@ import org.zeveon.service.HealthService;
 import org.zeveon.service.PersonService;
 import org.zeveon.service.StatisticService;
 
+import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +58,7 @@ public class UpdateController {
 
     private static final String NEW_LINE_TEMPLATE = "%s\n%s";
     private static final String HOST_LIST_TEMPLATE = "%s: %s";
+    public static final String UTC = "UTC";
 
     private final MessageSource messageSource;
 
@@ -119,6 +123,7 @@ public class UpdateController {
                     case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
                     case Command.SETTINGS -> sendResponse(buildSettingsResponse(chatId), chatId);
                     case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
+                    case Command.CHANGE_OFFSET -> sendResponse(buildChangeOffsetResponse(chatId, args.toUpperCase()), chatId);
                     case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
                     case Command.CHANGE_RATE -> sendResponse(buildChangeRateResponse(chatId, args), chatId);
                     case Command.ADD_ADMIN -> sendResponse(buildAddAdminResponse(chatId, args), chatId);
@@ -235,6 +240,16 @@ public class UpdateController {
             return getLocalizedMessage("message.change_language_success", chatId);
         } else {
             return getLocalizedMessage("message.no_such_language", chatId).formatted(language);
+        }
+    }
+
+    private String buildChangeOffsetResponse(Long chatId, String offset) {
+        try {
+            var zoneId = ZoneId.ofOffset(UTC, ZoneOffset.of(offset));
+            chatSettingsService.updateZoneId(chatId, zoneId.getId());
+            return getLocalizedMessage("message.change_offset_success", chatId);
+        } catch (DateTimeException e) {
+            return getLocalizedMessage("message.change_offset_wrong_format", chatId);
         }
     }
 
@@ -366,12 +381,17 @@ public class UpdateController {
                         getDurationReadableFormat(settings.getCheckRate(), chatId)),
                 getLocalizedMessage("chat_settings.modified_date", chatId).formatted(
                         ofNullable(settings.getModifiedDate())
-                                .map(d -> d.format(DateTimeFormatter.RFC_1123_DATE_TIME))
+                                .map(d -> d.withZoneSameInstant(getTimezone(settings))
+                                        .format(DateTimeFormatter.RFC_1123_DATE_TIME))
                                 .orElse(EMPTY)),
                 getLocalizedMessage("chat_settings.modified_by", chatId).formatted(
                         ofNullable(settings.getModifiedBy())
                                 .orElse(EMPTY))
         );
+    }
+
+    private ZoneId getTimezone(ChatSettings settings) {
+        return ZoneId.of(settings.getZoneId());
     }
 
     private boolean methodSupported(String method) {

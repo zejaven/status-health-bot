@@ -40,6 +40,10 @@ public class ChatSettings {
     private String locale = "EN";
 
     @Builder.Default
+    @Column(name = "zone_id", nullable = false, columnDefinition = "VARCHAR(255) DEFAULT 'UTC+0000'")
+    private String zoneId = "UTC+0000";
+
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "method", nullable = false, columnDefinition = "VARCHAR(255) DEFAULT 'APACHE_HTTP_CLIENT'")
     private Method method = Method.APACHE_HTTP_CLIENT;

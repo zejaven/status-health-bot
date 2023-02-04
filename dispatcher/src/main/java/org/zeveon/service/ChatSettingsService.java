@@ -29,6 +29,8 @@ public interface ChatSettingsService {
 
     void updateLocale(Long chatId, String locale);
 
+    void updateZoneId(Long chatId, String zoneId);
+
     void updateMethod(Long chatId, Method method);
 
     void updateCheckRate(Long chatId, Duration rate);
