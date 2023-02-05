@@ -6,4 +6,5 @@ package org.zeveon.cache;
 public class Cache {
 
     public static final String HOSTS = "HOSTS";
+    public static final String USERS = "USERS";
 }

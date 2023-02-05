@@ -1,8 +1,11 @@
 package org.zeveon.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.zeveon.cache.Cache;
 import org.zeveon.entity.Person;
 import org.zeveon.repository.PersonRepository;
 import org.zeveon.service.PersonService;
@@ -20,6 +23,7 @@ public class PersonServiceImpl implements PersonService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "#userId", value = Cache.USERS)
     public Optional<Person> findByUserId(Long userId) {
         return personRepository.findById(userId);
     }
@@ -32,6 +36,7 @@ public class PersonServiceImpl implements PersonService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = Cache.USERS, allEntries = true)
     public Optional<Person> updateAdminRights(String username, boolean isAdmin) {
         var person = personRepository.findByUsername(username);
         person.ifPresent(p -> p.setAdmin(isAdmin));

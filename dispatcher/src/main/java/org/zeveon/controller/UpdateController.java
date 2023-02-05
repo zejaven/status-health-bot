@@ -9,9 +9,7 @@ import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.zeveon.component.HealthBot;
@@ -19,7 +17,6 @@ import org.zeveon.context.UserContext;
 import org.zeveon.data.Data;
 import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
-import org.zeveon.entity.Person;
 import org.zeveon.model.Command;
 import org.zeveon.model.HealthInfo;
 import org.zeveon.model.Language;
@@ -83,29 +80,7 @@ public class UpdateController {
     }
 
     public void processUpdate(Update update) {
-        if (update == null) {
-            log.error("Received update is null");
-            return;
-        }
-
-        if (update.getMessage() != null) {
-            processMessage(update);
-        } else {
-            log.error("Received unsupported message type: " + update);
-        }
-    }
-
-    public void reportStatusCodeChanged(Host host, Method method, HealthInfo healthInfo) {
-        chatSettingsService.findChatSettingsByHostAndMethod(host, method)
-                .forEach(c -> sendResponse(
-                        buildStatusCodeChangedResponse(c.getChatId(), host, healthInfo),
-                        c.getChatId()
-                ));
-    }
-
-    private void processMessage(Update update) {
         var message = update.getMessage();
-        setCurrentUser(message);
         var chatId = message.getChatId();
         if (isTrue(message.getGroupchatCreated())) {
             sendResponse(buildChatCreatedResponse(chatId), chatId);
@@ -134,18 +109,12 @@ public class UpdateController {
         }
     }
 
-    private void setCurrentUser(Message message) {
-        var user = message.getFrom();
-        var person = personService.findByUserId(user.getId())
-                        .orElseGet(() -> personService.save(buildPerson(user)));
-        UserContext.setInstance(user, person.isAdmin(), person.isSuperAdmin());
-    }
-
-    private Person buildPerson(User user) {
-        return Person.builder()
-                .userId(user.getId())
-                .username(user.getUserName())
-                .build();
+    public void reportStatusCodeChanged(Host host, Method method, HealthInfo healthInfo) {
+        chatSettingsService.findChatSettingsByHostAndMethod(host, method)
+                .forEach(c -> sendResponse(
+                        buildStatusCodeChangedResponse(c.getChatId(), host, healthInfo),
+                        c.getChatId()
+                ));
     }
 
     private void sendResponse(String message, Long chatId) {
