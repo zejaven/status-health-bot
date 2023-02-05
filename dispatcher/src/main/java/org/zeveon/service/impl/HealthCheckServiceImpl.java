@@ -138,10 +138,10 @@ public class HealthCheckServiceImpl implements HealthCheckService {
             var request = new HttpGet(host.getUrl());
             var response = httpClient.execute(request);
             int responseCode = response.getStatusLine().getStatusCode();
-            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
+            log.debug(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException e) {
-            log.error(e.getMessage());
+            log.debug(e.getMessage());
             return 0;
         }
     }
@@ -158,10 +158,10 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         try {
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             int responseCode = response.statusCode();
-            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
+            log.debug(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException | InterruptedException e) {
-            log.error(e.getMessage());
+            log.debug(e.getMessage());
             return 0;
         }
     }
@@ -191,10 +191,10 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                     .map(r -> r.split(SPACE)[1])
                     .map(Integer::parseInt)
                     .orElse(0);
-            log.info(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
+            log.debug(HEALTH_TEMPLATE.formatted(host.getUrl(), responseCode));
             return responseCode;
         } catch (IOException e) {
-            log.error(e.getMessage());
+            log.debug(e.getMessage());
             return 0;
         }
     }
