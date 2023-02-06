@@ -1,11 +1,15 @@
 package org.zeveon.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+
+import static org.zeveon.util.ConstraintUtil.IP_REGEXP;
+import static org.zeveon.util.ConstraintUtil.LINK_REGEXP;
 
 /**
  * @author Stanislav Vafin
@@ -27,6 +31,7 @@ public class Host {
 
     @EqualsAndHashCode.Include
     @Column(name = "url", unique = true, nullable = false)
+    @Pattern(regexp = "(" + LINK_REGEXP + "|" + IP_REGEXP + ")")
     private String url;
 
     @Builder.Default
