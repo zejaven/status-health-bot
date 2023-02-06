@@ -37,6 +37,10 @@ public class Statistic {
     @Column(name = "response_code")
     private Integer responseCode;
 
+    @Builder.Default
+    @Column(name = "modified", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private boolean modified = true;
+
     @CreatedDate
     @TimeZoneStorage(TimeZoneStorageType.NATIVE)
     @Column(name = "created_date", nullable = false, updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
