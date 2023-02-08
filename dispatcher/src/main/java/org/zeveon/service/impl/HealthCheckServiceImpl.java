@@ -73,9 +73,9 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                     var startTime = LocalDateTime.now();
                     var connectionTimeout = botInfo.getHealthCheckConnectionTimeout();
                     var responseCode = 0;
-                    var statisticExists = true;
                     var responseCodeChanged = false;
                     var statistic = findHostStatisticByMethod(host, method);
+                    var statisticExists = statistic.isPresent();
                     var needAppender = statistic.map(Statistic::getNeedAppender);
                     var protocol = statistic.map(Statistic::getPreferredProtocol);
                     var connectionType = ConnectionType.getByFields(
