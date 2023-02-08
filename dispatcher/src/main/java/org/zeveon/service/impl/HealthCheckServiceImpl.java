@@ -15,9 +15,7 @@ import org.zeveon.entity.ChatSettings;
 import org.zeveon.entity.Host;
 import org.zeveon.entity.Statistic;
 import org.zeveon.entity.StatisticId;
-import org.zeveon.model.BotInfo;
-import org.zeveon.model.HealthInfo;
-import org.zeveon.model.Method;
+import org.zeveon.model.*;
 import org.zeveon.repository.HostRepository;
 import org.zeveon.service.HealthCheckService;
 import org.zeveon.util.CurlRequest;
@@ -34,8 +32,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
+import static java.util.Optional.of;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
 import static org.zeveon.model.Method.*;
@@ -53,6 +53,9 @@ public class HealthCheckServiceImpl implements HealthCheckService {
     private static final String HEALTH_TEMPLATE = "%s | %s";
     private static final String HTTP = "HTTP";
     private static final String URL_APPENDER = "/robots.txt";
+    private static final String PROTOCOL_REGEX = "^https?";
+    private static final String EXCLUDE_RIGHT_SIDE_PATTERN = "(%s).*";
+    private static final String $ = "$";
 
     private final HostRepository hostRepository;
 
@@ -72,15 +75,23 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                     var statisticExists = true;
                     var responseCodeChanged = false;
                     var statistic = findHostStatisticByMethod(host, method);
-                    boolean modified = statistic.map(Statistic::isModified).orElse(true);
-                    var modifiedUrl = modifyUrl(host, modified);
+                    var needAppender = statistic.map(Statistic::getNeedAppender);
+                    var protocol = statistic.map(Statistic::getPreferredProtocol);
+                    var connectionType = ConnectionType.getByFields(
+                            needAppender.orElse(true),
+                            protocol.isPresent());
                     switch (method) {
                         case APACHE_HTTP_CLIENT -> {
-                            responseCode = checkHealthApache(modifiedUrl, botUsername, connectionTimeout);
-                            statisticExists = statistic.isPresent();
-                            if (isModifiedRequestNotSuccessful(responseCode, statisticExists, statistic)) {
-                                modified = false;
-                                responseCode = checkHealthApache(host.getUrl(), botUsername, connectionTimeout);
+                            for (var entry : reorder(connectionType)) {
+                                responseCode = checkHealthApache(
+                                        modifyUrl(host, entry, protocol),
+                                        botUsername,
+                                        connectionTimeout);
+                                if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
+                                    needAppender = of(entry.isNeedAppender());
+                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    break;
+                                }
                             }
                             responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
                             saveStatistic(
@@ -89,15 +100,21 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                     durationsRequestCountPair,
                                     startTime,
                                     responseCode,
-                                    modified
+                                    needAppender,
+                                    protocol
                             );
                         }
                         case JAVA_HTTP_CLIENT -> {
-                            responseCode = checkHealthJava(modifiedUrl, botUsername, connectionTimeout);
-                            statisticExists = statistic.isPresent();
-                            if (isModifiedRequestNotSuccessful(responseCode, statisticExists, statistic)) {
-                                modified = false;
-                                responseCode = checkHealthJava(host.getUrl(), botUsername, connectionTimeout);
+                            for (var entry : reorder(connectionType)) {
+                                responseCode = checkHealthJava(
+                                        modifyUrl(host, entry, protocol),
+                                        botUsername,
+                                        connectionTimeout);
+                                if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
+                                    needAppender = of(entry.isNeedAppender());
+                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    break;
+                                }
                             }
                             responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
                             saveStatistic(
@@ -106,15 +123,21 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                     durationsRequestCountPair,
                                     startTime,
                                     responseCode,
-                                    modified
+                                    needAppender,
+                                    protocol
                             );
                         }
                         case CURL_PROCESS -> {
-                            responseCode = checkHealthCurl(modifiedUrl, botUsername, connectionTimeout);
-                            statisticExists = statistic.isPresent();
-                            if (isModifiedRequestNotSuccessful(responseCode, statisticExists, statistic)) {
-                                modified = false;
-                                responseCode = checkHealthCurl(host.getUrl(), botUsername, connectionTimeout);
+                            for (var entry : reorder(connectionType)) {
+                                responseCode = checkHealthCurl(
+                                        modifyUrl(host, entry, protocol),
+                                        botUsername,
+                                        connectionTimeout);
+                                if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
+                                    needAppender = of(entry.isNeedAppender());
+                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    break;
+                                }
                             }
                             responseCodeChanged = checkResponseCodeChanged(statistic, responseCode);
                             saveStatistic(
@@ -123,7 +146,8 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                     durationsRequestCountPair,
                                     startTime,
                                     responseCode,
-                                    modified
+                                    needAppender,
+                                    protocol
                             );
                         }
                     }
@@ -133,15 +157,34 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 });
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    private boolean isModifiedRequestNotSuccessful(int responseCode, boolean statisticExists, Optional<Statistic> statistic) {
-        return (!statisticExists || statistic.get().isModified()) && !responseCodeSuccessful(responseCode);
+    private List<ConnectionType> reorder(ConnectionType connectionType) {
+        return Stream.concat(
+                Stream.of(connectionType),
+                stream(ConnectionType.values())
+                        .filter(c -> !connectionType.equals(c))
+        ).toList();
     }
 
-    private String modifyUrl(Host host, boolean modified) {
-        return modified
-                ? host.getUrl().concat(URL_APPENDER)
-                : host.getUrl();
+    private boolean isModified(Optional<Boolean> needAppenderOpt, Optional<Protocol> protocolOpt) {
+        return needAppenderOpt.isPresent() || protocolOpt.isPresent();
+    }
+
+    private Protocol getProtocol(String url, Optional<Protocol> protocol) {
+        return protocol.orElse(Protocol.valueOf(url.replaceAll(EXCLUDE_RIGHT_SIDE_PATTERN.formatted(PROTOCOL_REGEX), group(1)).toUpperCase()));
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private String group(Integer group) {
+        return $ + group;
+    }
+
+    private String modifyUrl(Host host, ConnectionType connectionType, Optional<Protocol> protocol) {
+        var modifiedProtocolUrl = protocol
+                .map(p -> host.getUrl().replaceAll(PROTOCOL_REGEX, p.name().toLowerCase()))
+                .orElse(host.getUrl());
+        return connectionType.isNeedAppender()
+                ? modifiedProtocolUrl.concat(URL_APPENDER)
+                : modifiedProtocolUrl;
     }
 
     private boolean responseCodeSuccessful(int responseCode) {
@@ -237,7 +280,8 @@ public class HealthCheckServiceImpl implements HealthCheckService {
             Pair<List<Duration>, Integer> durationsRequestCountPair,
             LocalDateTime startTime,
             int responseCode,
-            boolean modified
+            Optional<Boolean> needAppender,
+            Optional<Protocol> protocol
     ) {
         var durations = durationsRequestCountPair.getLeft();
         durations.add(Duration.between(startTime, LocalDateTime.now()));
@@ -248,18 +292,19 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .filter(s -> s.getId().equals(buildStatisticId(host, method)))
                 .findAny()
                 .ifPresentOrElse(
-                        s -> updateFields(s, responseCode, durations, newCount, modified),
-                        () -> statistic.add(buildStatistic(host, method, responseCode, durations, newCount, modified))
+                        s -> updateFields(s, responseCode, durations, newCount, needAppender.orElse(null), protocol.orElse(null)),
+                        () -> statistic.add(buildStatistic(host, method, responseCode, durations, newCount, needAppender.orElse(null), protocol.orElse(null)))
                 );
         Data.getRequestCount().put(host, Pair.of(durations, newCount));
     }
 
-    private Statistic buildStatistic(Host host, Method method, int responseCode, List<Duration> durations, Integer newCount, boolean modified) {
+    private Statistic buildStatistic(Host host, Method method, int responseCode, List<Duration> durations, Integer newCount, Boolean needAppender, Protocol protocol) {
         return Statistic.builder()
                 .id(buildStatisticId(host, method))
                 .responseTime(calculateAverage(durations, newCount))
                 .responseCode(responseCode)
-                .modified(modified)
+                .needAppender(needAppender)
+                .preferredProtocol(protocol)
                 .build();
     }
 
@@ -270,10 +315,11 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .build();
     }
 
-    private void updateFields(Statistic s, int responseCode, List<Duration> durations, Integer newCount, boolean modified) {
+    private void updateFields(Statistic s, int responseCode, List<Duration> durations, Integer newCount, Boolean needAppender, Protocol protocol) {
         s.setResponseTime(calculateAverage(durations, newCount));
         s.setResponseCode(responseCode);
-        s.setModified(modified);
+        s.setNeedAppender(needAppender);
+        s.setPreferredProtocol(protocol);
     }
 
     private Duration calculateAverage(List<Duration> durations, Integer newCount) {

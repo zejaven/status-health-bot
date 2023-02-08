@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="2023-02-08-09-09-00_add-column-preferred-protocol-for-statistic" author="Stanislav Vafin">
+        <dropNotNullConstraint tableName="statistic" schemaName="health" columnName="modified"/>
+        <update tableName="statistic" schemaName="health">
+            <column name="modified" value="null"/>
+            <where>modified = true</where>
+        </update>
+        <renameColumn tableName="statistic" schemaName="health" oldColumnName="modified" newColumnName="need_appender"/>
+
+        <addColumn tableName="statistic" schemaName="health">
+            <column name="preferred_protocol" type="varchar(255)">
+                <constraints checkConstraint="preferred_protocol in ('HTTP','HTTPS')"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="statistic" schemaName="health" columnName="preferred_protocol"/>
+            <renameColumn tableName="statistic" oldColumnName="need_appender" newColumnName="modified" schemaName="health"/>
+            <update tableName="statistic" schemaName="health">
+                <column name="modified" valueBoolean="true"/>
+                <where>modified is null</where>
+            </update>
+            <addNotNullConstraint tableName="statistic" columnName="modified" schemaName="health"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

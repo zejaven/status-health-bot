@@ -4,14 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TimeZoneStorage;
 import org.hibernate.annotations.TimeZoneStorageType;
-import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.zeveon.model.Protocol;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 
 /**
@@ -37,9 +35,12 @@ public class Statistic {
     @Column(name = "response_code")
     private Integer responseCode;
 
-    @Builder.Default
-    @Column(name = "modified", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
-    private boolean modified = true;
+    @Column(name = "need_appender")
+    private Boolean needAppender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_protocol")
+    private Protocol preferredProtocol;
 
     @CreatedDate
     @TimeZoneStorage(TimeZoneStorageType.NATIVE)
