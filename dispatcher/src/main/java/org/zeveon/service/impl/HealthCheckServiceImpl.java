@@ -35,10 +35,12 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
+import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static org.apache.commons.lang3.StringUtils.LF;
 import static org.apache.commons.lang3.StringUtils.SPACE;
 import static org.zeveon.model.Method.*;
+import static org.zeveon.model.Protocol.HTTP;
 import static org.zeveon.util.Functions.distinctByKey;
 
 /**
@@ -51,7 +53,6 @@ public class HealthCheckServiceImpl implements HealthCheckService {
 
     private static final int MILLIS_IN_SECOND = 1000;
     private static final String HEALTH_TEMPLATE = "%s | %s";
-    private static final String HTTP = "HTTP";
     private static final String URL_APPENDER = "/robots.txt";
     private static final String PROTOCOL_REGEX = "^https?";
     private static final String EXCLUDE_RIGHT_SIDE_PATTERN = "(%s).*";
@@ -89,7 +90,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                         connectionTimeout);
                                 if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
                                     needAppender = of(entry.isNeedAppender());
-                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    protocol = protocol.or(() -> getProtocol(host.getUrl()));
                                     break;
                                 }
                             }
@@ -112,7 +113,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                         connectionTimeout);
                                 if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
                                     needAppender = of(entry.isNeedAppender());
-                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    protocol = protocol.or(() -> getProtocol(host.getUrl()));
                                     break;
                                 }
                             }
@@ -135,7 +136,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                                         connectionTimeout);
                                 if (isModified(needAppender, protocol) || responseCodeSuccessful(responseCode)) {
                                     needAppender = of(entry.isNeedAppender());
-                                    protocol = of(getProtocol(host.getUrl(), protocol));
+                                    protocol = protocol.or(() -> getProtocol(host.getUrl()));
                                     break;
                                 }
                             }
@@ -169,8 +170,10 @@ public class HealthCheckServiceImpl implements HealthCheckService {
         return needAppenderOpt.isPresent() || protocolOpt.isPresent();
     }
 
-    private Protocol getProtocol(String url, Optional<Protocol> protocol) {
-        return protocol.orElse(Protocol.valueOf(url.replaceAll(EXCLUDE_RIGHT_SIDE_PATTERN.formatted(PROTOCOL_REGEX), group(1)).toUpperCase()));
+    private Optional<Protocol> getProtocol(String url) {
+        return hasProtocol(url)
+                ? of(Protocol.valueOf(url.replaceAll(EXCLUDE_RIGHT_SIDE_PATTERN.formatted(PROTOCOL_REGEX), group(1)).toUpperCase()))
+                : empty();
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -180,11 +183,16 @@ public class HealthCheckServiceImpl implements HealthCheckService {
 
     private String modifyUrl(Host host, ConnectionType connectionType, Optional<Protocol> protocol) {
         var modifiedProtocolUrl = protocol
+                .filter(p -> hasProtocol(host.getUrl()))
                 .map(p -> host.getUrl().replaceAll(PROTOCOL_REGEX, p.name().toLowerCase()))
                 .orElse(host.getUrl());
         return connectionType.isNeedAppender()
                 ? modifiedProtocolUrl.concat(URL_APPENDER)
                 : modifiedProtocolUrl;
+    }
+
+    private boolean hasProtocol(String url) {
+        return url.startsWith(HTTP.name().toLowerCase());
     }
 
     private boolean responseCodeSuccessful(int responseCode) {
@@ -256,7 +264,7 @@ public class HealthCheckServiceImpl implements HealthCheckService {
             var output = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.contains(HTTP)) {
+                if (line.contains(HTTP.name())) {
                     output.append(line).append(LF);
                 }
             }
@@ -292,20 +300,28 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .filter(s -> s.getId().equals(buildStatisticId(host, method)))
                 .findAny()
                 .ifPresentOrElse(
-                        s -> updateFields(s, responseCode, durations, newCount, needAppender.orElse(null), protocol.orElse(null)),
-                        () -> statistic.add(buildStatistic(host, method, responseCode, durations, newCount, needAppender.orElse(null), protocol.orElse(null)))
+                        s -> updateFields(s, responseCode, durations, newCount, needAppender, protocol),
+                        () -> statistic.add(buildStatistic(host, method, responseCode, durations, newCount, needAppender, protocol))
                 );
         Data.getRequestCount().put(host, Pair.of(durations, newCount));
     }
 
-    private Statistic buildStatistic(Host host, Method method, int responseCode, List<Duration> durations, Integer newCount, Boolean needAppender, Protocol protocol) {
-        return Statistic.builder()
+    private Statistic buildStatistic(
+            Host host,
+            Method method,
+            int responseCode,
+            List<Duration> durations,
+            Integer newCount,
+            Optional<Boolean> needAppender,
+            Optional<Protocol> protocol
+    ) {
+        var builder = Statistic.builder()
                 .id(buildStatisticId(host, method))
                 .responseTime(calculateAverage(durations, newCount))
-                .responseCode(responseCode)
-                .needAppender(needAppender)
-                .preferredProtocol(protocol)
-                .build();
+                .responseCode(responseCode);
+        needAppender.ifPresent(builder::needAppender);
+        protocol.ifPresent(builder::preferredProtocol);
+        return builder.build();
     }
 
     private StatisticId buildStatisticId(Host host, Method method) {
@@ -315,11 +331,18 @@ public class HealthCheckServiceImpl implements HealthCheckService {
                 .build();
     }
 
-    private void updateFields(Statistic s, int responseCode, List<Duration> durations, Integer newCount, Boolean needAppender, Protocol protocol) {
-        s.setResponseTime(calculateAverage(durations, newCount));
-        s.setResponseCode(responseCode);
-        s.setNeedAppender(needAppender);
-        s.setPreferredProtocol(protocol);
+    private void updateFields(
+            Statistic statistic,
+            int responseCode,
+            List<Duration> durations,
+            Integer newCount,
+            Optional<Boolean> needAppender,
+            Optional<Protocol> protocol
+    ) {
+        statistic.setResponseTime(calculateAverage(durations, newCount));
+        statistic.setResponseCode(responseCode);
+        needAppender.ifPresent(statistic::setNeedAppender);
+        protocol.ifPresent(statistic::setPreferredProtocol);
     }
 
     private Duration calculateAverage(List<Duration> durations, Integer newCount) {
