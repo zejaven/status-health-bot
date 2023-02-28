@@ -289,10 +289,15 @@ public class UpdateController {
             }
         } catch (RuntimeException re) {
             try {
-                var duration = Duration.ofMinutes(Long.parseLong(durationStr));
-                chatSettingsService.updateCheckRate(chatId, duration);
-                return getLocalizedMessage("message.change_rate_success", chatId)
-                        .formatted(getDurationReadableFormat(duration, chatId));
+                var minutes = Long.parseLong(durationStr);
+                var duration = Duration.ofMinutes(minutes);
+                if (minutes >= 1L) {
+                    chatSettingsService.updateCheckRate(chatId, duration);
+                    return getLocalizedMessage("message.change_rate_success", chatId)
+                            .formatted(getDurationReadableFormat(duration, chatId));
+                } else {
+                    return getLocalizedMessage("message.change_rate_less_than_second", chatId);
+                }
             } catch (NumberFormatException nfe) {
                 return getLocalizedMessage("message.change_rate_wrong_format", chatId);
             }
