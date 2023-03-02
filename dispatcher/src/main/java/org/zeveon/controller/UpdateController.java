@@ -89,21 +89,24 @@ public class UpdateController {
             var command = text.split(WHITESPACE_CHARACTER)[0];
             if (command.startsWith(SLASH)) {
                 var args = text.replace(command, EMPTY).strip();
-                switch (command) {
-                    case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
-                    case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
-                    case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
-                    case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
-                    case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
-                    case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
-                    case Command.SETTINGS -> sendResponse(buildSettingsResponse(chatId), chatId);
-                    case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
-                    case Command.CHANGE_OFFSET -> sendResponse(buildChangeOffsetResponse(chatId, args.toUpperCase()), chatId);
-                    case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
-                    case Command.CHANGE_RATE -> sendResponse(buildChangeRateResponse(chatId, args), chatId);
-                    case Command.ADD_ADMIN -> sendResponse(buildAddAdminResponse(chatId, args), chatId);
-                    case Command.REMOVE_ADMIN -> sendResponse(buildRemoveAdminResponse(chatId, args), chatId);
-                    default -> sendResponse(buildEmptyResponse(chatId), chatId);
+                var commandAndInvocation = command.split(AT_SIGN);
+                if (commandAndInvocation.length == 1 || commandAndInvocation[1].equals(healthBot.getBotUsername())) {
+                    switch (commandAndInvocation[0]) {
+                        case Command.HELP -> sendResponse(buildHelpResponse(chatId), chatId);
+                        case Command.ADD -> sendResponse(buildAddResponse(chatId, args), chatId);
+                        case Command.GET_HOSTS -> sendResponse(buildHostsResponse(chatId), chatId);
+                        case Command.REMOVE -> sendResponse(buildRemoveResponse(chatId, args), chatId);
+                        case Command.REMOVE_ALL -> sendResponse(buildRemoveAllResponse(chatId), chatId);
+                        case Command.STATISTIC -> sendResponse(buildStatisticResponse(chatId), chatId);
+                        case Command.SETTINGS -> sendResponse(buildSettingsResponse(chatId), chatId);
+                        case Command.CHANGE_LANGUAGE -> sendResponse(buildChangeLanguageResponse(chatId, args.toUpperCase()), chatId);
+                        case Command.CHANGE_OFFSET -> sendResponse(buildChangeOffsetResponse(chatId, args.toUpperCase()), chatId);
+                        case Command.CHANGE_METHOD -> sendResponse(buildChangeMethodResponse(chatId, args.toUpperCase()), chatId);
+                        case Command.CHANGE_RATE -> sendResponse(buildChangeRateResponse(chatId, args), chatId);
+                        case Command.ADD_ADMIN -> sendResponse(buildAddAdminResponse(chatId, args), chatId);
+                        case Command.REMOVE_ADMIN -> sendResponse(buildRemoveAdminResponse(chatId, args), chatId);
+                        default -> sendResponse(buildEmptyResponse(chatId), chatId);
+                    }
                 }
             }
         }

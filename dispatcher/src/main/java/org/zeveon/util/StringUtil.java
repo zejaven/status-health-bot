@@ -11,4 +11,5 @@ public class StringUtil {
     public static final String SLASH = "/";
     public static final String DOT = ".";
     public static final String INVISIBLE_DOT = "․";
+    public static final String AT_SIGN = "@";
 }
